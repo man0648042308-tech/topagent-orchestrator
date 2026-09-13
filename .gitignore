@@ -1,0 +1,46 @@
+# Claude Code
+.claude/cache/
+.claude/downloads/
+.claude/file-history/
+.claude/paste-cache/
+.claude/plans/
+.claude/sessions/
+.claude/shell-snapshots/
+.claude/tasks/
+.claude/telemetry/
+.claude/session-env/
+.claude/history.jsonl
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 模型网关生成产物 (图像/音频测试输出)
+outputs/
+
+# 编排器运行状态（不入库）
+orchestrator/state/
+orchestrator/outputs/
+
+# IDE
+.vscode/
+.idea/
+
+# Python 编译产物
+__pycache__/
+
+# 本地工作目录（不上传）
+2026-08-08/
+# video-notes 运行产物
+video-notes/output/
+
+# TopAgent v3 本地运行数据（数据库、工作区、密钥密文与跟踪）
+# 仅忽略仓库根目录；不能误伤 topagent/runtime/ 源码包。
+/runtime/
+
+# 浏览器“网页另存为”可能内嵌会话 cookie/JWT，不得进入仓库
+.claude/skills/*Manus.html
+.claude/skills/*Manus_files/
+
+*.bak
+*.bak-*

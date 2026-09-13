@@ -1,0 +1,16 @@
+{
+  "capability_id": "durable-message-bus",
+  "name": "持久 Agent 消息总线",
+  "status": "implemented",
+  "maturity": "L2-verified",
+  "owner": "topagent-bus",
+  "entrypoint": "mcp-bridge/server.py",
+  "execution_code": "topagent/bus/store.py",
+  "tests": ["tests/test_message_bus.py", "tests/test_mcp_bridge.py"],
+  "runtime_artifacts": ["runtime/topagent.db"],
+  "metrics": ["queued", "leased", "processing", "retry_wait", "dead_letter", "attempts"],
+  "failure_recovery": "租约过期重排、延迟重试、最大次数后死信、幂等键去重",
+  "audit": ["messages", "message_deliveries", "execution_events"],
+  "limitations": ["单机 SQLite WAL，不是跨区域消息集群"],
+  "verification": {"command": "python -m unittest tests.test_message_bus tests.test_mcp_bridge -v", "last_verified_at": "2026-08-17"}
+}

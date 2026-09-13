@@ -1,0 +1,16 @@
+{
+  "capability_id": "control-center",
+  "name": "本地可观测 Control Center",
+  "status": "implemented",
+  "maturity": "L2-verified",
+  "owner": "topagent-observability",
+  "entrypoint": "python -m topagent serve --host 127.0.0.1 --port 8765",
+  "execution_code": "topagent/api/server.py",
+  "tests": ["tests/test_control_center.py"],
+  "runtime_artifacts": ["HTTP /api/*", "SSE /api/events/stream", "topagent/dashboard/"],
+  "metrics": ["execution status", "message backlog", "dead letters", "memory states", "registry counts"],
+  "failure_recovery": "Control Center 是无状态读层，重启后从 SQLite 恢复；提供过期消息重排 API",
+  "audit": ["executions", "execution_events", "audit_records"],
+  "limitations": ["默认仅绑定本机；无多用户 RBAC；尚未输出 OTLP"],
+  "verification": {"command": "python -m unittest tests.test_control_center -v", "last_verified_at": "2026-08-17"}
+}

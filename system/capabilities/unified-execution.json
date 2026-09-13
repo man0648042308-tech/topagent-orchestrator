@@ -1,0 +1,16 @@
+{
+  "capability_id": "unified-execution",
+  "name": "统一 Agent 执行接口",
+  "status": "implemented",
+  "maturity": "L2-verified",
+  "owner": "topagent-runtime",
+  "entrypoint": "python -m topagent dispatch <agent> <task>",
+  "execution_code": "topagent/runtime/dispatcher.py",
+  "tests": ["tests/test_dispatcher.py"],
+  "runtime_artifacts": ["runtime/topagent.db", "runtime/artifacts/", "runtime/workspaces/"],
+  "metrics": ["execution status", "duration_ms", "input_hash", "output_hash"],
+  "failure_recovery": "失败结构化入库；上层 Scheduler 按消息策略重试",
+  "audit": ["executions", "execution_events", "artifacts", "attestation_json"],
+  "limitations": ["付费/订阅额度调用默认允许，free-only 需显式设置", "尚未提供跨主机执行器"],
+  "verification": {"command": "python -m unittest tests.test_dispatcher -v", "last_verified_at": "2026-08-17"}
+}

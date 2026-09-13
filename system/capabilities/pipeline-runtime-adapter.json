@@ -1,0 +1,16 @@
+{
+  "capability_id": "pipeline-runtime-adapter",
+  "name": "pipeline.json 可执行适配",
+  "status": "implemented",
+  "maturity": "L2-verified",
+  "owner": "topagent-orchestrator",
+  "entrypoint": "python -m topagent run-step <run_id> <step_id>",
+  "execution_code": "topagent/runtime/orchestrator.py",
+  "tests": ["tests/test_orchestrator_runtime.py", "orchestrator/test_human_gate.py"],
+  "runtime_artifacts": ["runs", "executions", "execution_events", "artifacts"],
+  "metrics": ["run status", "step", "execution status", "gate type"],
+  "failure_recovery": "执行失败保留证据并标记 run failed；人工门禁继续由旧编排器兼容负责",
+  "audit": ["pipeline_version", "run_id", "execution_id", "trace_id"],
+  "limitations": ["v3 适配器尚未替代旧编排器全部门禁命令；两者处于兼容迁移期"],
+  "verification": {"command": "python -m unittest tests.test_orchestrator_runtime -v", "last_verified_at": "2026-08-17"}
+}

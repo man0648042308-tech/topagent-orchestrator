@@ -1,0 +1,99 @@
+# 🔀 Model Router 配置 v0.1 (MVP)
+# API Key 解析顺序: 环境变量 -> runtime/secrets.enc 的 Windows DPAPI 解密
+# 路由矩阵来自 memory/model-config.md 的优先级设计
+
+platforms:
+  dashscope:                      # 阿里百炼 (主力全模态)
+    type: openai_compat
+    api_key_env: DASHSCOPE_API_KEY
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    timeout_s: 60
+  csdn:                           # CSDN (多模型聚合, 约5折)
+    type: openai_compat
+    api_key_env: CSDN_API_KEY
+    base_url: https://api.csdn.net/v1
+    timeout_s: 60
+  deepseek:                       # DeepSeek 直连
+    type: openai_compat
+    api_key_env: DEEPSEEK_API_KEY
+    base_url: https://api.deepseek.com/v1
+    timeout_s: 60
+  siliconflow:                    # 硅基流动 (文本+视觉)
+    type: openai_compat
+    api_key_env: SILICONFLOW_API_KEY
+    base_url: https://api.siliconflow.cn/v1
+    timeout_s: 60
+  anthropic:                      # Claude 直连 (需 ANTHROPIC_API_KEY, 当前未配置)
+    type: anthropic
+    api_key_env: ANTHROPIC_API_KEY
+    base_url: https://ws-qe0kfjbxnqd8bm42.cn-beijing.maas.aliyuncs.com/apps/anthropic
+    timeout_s: 60
+  dashscope_image:                # 阿里百炼图像生成 (原生 aigc 接口, 非 OpenAI 兼容)
+    type: image_gen
+    api_key_env: DASHSCOPE_API_KEY   # 复用百炼同一个 Key
+    base_url: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+    timeout_s: 120
+  dashscope_audio:                # 阿里百炼音频 TTS (qwen-tts 与图像生成同端点)
+    type: audio
+    api_key_env: DASHSCOPE_API_KEY
+    base_url: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+    timeout_s: 120
+
+# 路由矩阵: task_type -> primary(首选) + fallback(故障转移链)
+# platform: "local" 表示由 Claude Code 自身执行(本服务不代理)
+routing:
+  architecture:                   # 架构设计/深度推理
+    primary:  { platform: dashscope, model: qwen3.7-max }
+    fallback:
+      - { platform: csdn, model: deepseek-v4-pro }
+      - { platform: deepseek, model: deepseek-reasoner }
+  code_gen:                       # 代码生成/审查
+    primary:  { platform: csdn, model: claude-sonnet-4-6 }
+    fallback:
+      - { platform: dashscope, model: qwen3-coder-plus }
+      - { platform: csdn, model: deepseek-v4-flash }
+  vision:                         # 视觉理解/OCR
+    primary:  { platform: dashscope, model: qwen3-vl-plus }
+    fallback:
+      - { platform: siliconflow, model: Qwen/Qwen3-VL-32B-Instruct }
+  chinese:                        # 中文优化
+    primary:  { platform: csdn, model: glm-5.1 }
+    fallback:
+      - { platform: dashscope, model: qwen3.7-max }
+      - { platform: deepseek, model: deepseek-chat }
+  long_context:                   # 长文档分析
+    primary:  { platform: csdn, model: kimi-k2.6 }
+    fallback:
+      - { platform: dashscope, model: qwen3.6-max-preview }
+      - { platform: csdn, model: deepseek-v4-pro }
+  agent_coordination:             # Agent协调/Meta
+    primary:  { platform: local, model: "opus" }
+    fallback:
+      - { platform: csdn, model: claude-opus-4-7 }
+      - { platform: dashscope, model: qwen3.7-max }
+  fast_text:                      # 快速文本/日常
+    primary:  { platform: csdn, model: deepseek-v4-flash }
+    fallback:
+      - { platform: deepseek, model: deepseek-chat }
+      - { platform: siliconflow, model: deepseek-ai/DeepSeek-V3 }
+  general:                        # 通用兜底
+    primary:  { platform: csdn, model: deepseek-v4-pro }
+    fallback:
+      - { platform: dashscope, model: qwen3.7-max }
+      - { platform: deepseek, model: deepseek-chat }
+  multimodal:                     # 多模态理解 (图文音混合输入 → 文本/音频)
+    primary:  { platform: dashscope, model: qwen3.5-omni-plus }
+    fallback:
+      - { platform: siliconflow, model: Qwen/Qwen3-Omni-30B-A3B-Instruct }
+  image_gen:                      # 图像生成 (文生图)
+    primary:  { platform: dashscope_image, model: qwen-image-3.0-pro }
+    fallback:
+      - { platform: dashscope_image, model: wan2.7-image-pro }
+  asr:                            # 语音转文字 (OpenAI 兼容 chat 接口的 input_audio 音频输入)
+    # 实测(2026-08-09): 必须用 qwen3-asr-flash 走 compatible-mode;
+    # qwen-audio-3.0-asr-flash 走原生端点会一直报 "format is empty"
+    primary:  { platform: dashscope, model: qwen3-asr-flash }
+  tts:                            # 文字转语音 (原生 speech-synthesis)
+    primary:  { platform: dashscope_audio, model: qwen3-tts-instruct-flash }
+
+default_task_type: general

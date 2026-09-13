@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TopAgent Control Center</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">LOCAL RUNTIME / V3</p>
+      <h1>TopAgent Control Center</h1>
+      <p class="subtitle">执行、消息、记忆与能力证据的同一窗口</p>
+    </div>
+    <div class="health"><span id="health-dot"></span><strong id="health-label">连接中</strong></div>
+  </header>
+
+  <main>
+    <section id="metrics" class="metric-grid" aria-label="运行指标"></section>
+
+    <section class="grid two">
+      <article class="panel wide">
+        <div class="panel-title"><h2>执行流</h2><span>可追踪 execution_id</span></div>
+        <div class="table-wrap"><table><thead><tr><th>状态</th><th>Agent</th><th>执行 ID</th><th>Backend</th><th>时间</th></tr></thead><tbody id="executions"></tbody></table></div>
+      </article>
+      <article class="panel">
+        <div class="panel-title"><h2>消息队列</h2><span>租约 / 重试 / 死信</span></div>
+        <div id="message-bars" class="bars"></div>
+      </article>
+    </section>
+
+    <section class="grid three">
+      <article class="panel">
+        <div class="panel-title"><h2>Agent</h2><span>定义 ≠ 在线实例</span></div>
+        <div id="agents" class="scroll-list"></div>
+      </article>
+      <article class="panel">
+        <div class="panel-title"><h2>记忆生命周期</h2><span>候选 → 晋升 → 归档</span></div>
+        <div id="memory" class="scroll-list"></div>
+      </article>
+      <article class="panel">
+        <div class="panel-title"><h2>能力声明</h2><span>状态 + 证据</span></div>
+        <div id="capabilities" class="scroll-list"></div>
+      </article>
+    </section>
+
+    <section class="panel trace-panel">
+      <div class="panel-title"><h2>实时事件</h2><span id="stream-state">轮询中</span></div>
+      <ol id="events" class="event-list"></ol>
+    </section>
+  </main>
+
+  <template id="empty"><p class="empty">暂无运行数据</p></template>
+  <script src="/app.js" defer></script>
+</body>
+</html>

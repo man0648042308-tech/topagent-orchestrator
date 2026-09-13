@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>荣格·深海地图</title>
+<style>
+  /* ============ 主题令牌 ============ */
+  :root {
+    /* 光色系（光面 → 深海逐级沉降） */
+    --g0:#f6f4ee; --g1:#eff1f1; --g2:#e5eaf0; --g3:#d8e0eb; --g4:#cdd7e4;
+    --ink:#232841; --ink-soft:#4c5168; --muted:#6b7085;
+    --gold:#a67c2e; --gold-soft:#8a6a2a; --crimson:#a5443b; --lapis:#3e5f8f;
+    --card: rgba(255,255,255,.62); --line: rgba(35,40,65,.14);
+    --sea:#5f86b0; --sea-deep:#2c3e63;
+    --ice1:#eef4f8; --ice2:#c6d9e8; --ice3:#7d9cc0;
+    --on-ink:#f4f0e6;
+    --shadow: rgba(35,40,65,.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --g0:#1a1f33; --g1:#171c2f; --g2:#141828; --g3:#101525; --g4:#0d1220;
+      --ink:#ece8dd; --ink-soft:#c2beb0; --muted:#9a9689;
+      --gold:#e0bf6d; --gold-soft:#c9a44f; --crimson:#d06a5e; --lapis:#7f9fd0;
+      --card: rgba(19,24,40,.66); --line: rgba(236,232,221,.14);
+      --sea:#4a6d96; --sea-deep:#1d2b47;
+      --ice1:#dbe6ef; --ice2:#9fb8d2; --ice3:#5b7aa3;
+      --on-ink:#171c2f;
+      --shadow: rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --g0:#1a1f33; --g1:#171c2f; --g2:#141828; --g3:#101525; --g4:#0d1220;
+    --ink:#ece8dd; --ink-soft:#c2beb0; --muted:#9a9689;
+    --gold:#e0bf6d; --gold-soft:#c9a44f; --crimson:#d06a5e; --lapis:#7f9fd0;
+    --card: rgba(19,24,40,.66); --line: rgba(236,232,221,.14);
+    --sea:#4a6d96; --sea-deep:#1d2b47;
+    --ice1:#dbe6ef; --ice2:#9fb8d2; --ice3:#5b7aa3;
+    --on-ink:#171c2f;
+    --shadow: rgba(0,0,0,.35);
+  }
+
+  /* ============ 基础 ============ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    color: var(--ink);
+    background: var(--g0);
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,h2,h3 { line-height: 1.2; text-wrap: balance; }
+  .serif { font-family: Georgia, "Songti SC", STSong, "SimSun", serif; }
+  p { margin: 0 0 1em; }
+  .container { max-width: 1060px; margin: 0 auto; padding: 0 22px; }
+
+  /* ============ 顶部导航 ============ */
+  nav {
+    position: sticky; top: 0; z-index: 40;
+    backdrop-filter: blur(10px);
+    background: color-mix(in srgb, var(--g0) 78%, transparent);
+    border-bottom: 1px solid var(--line);
+  }
+  nav .container { display: flex; align-items: center; gap: 18px; padding-top: 10px; padding-bottom: 10px; }
+  nav .brand { font-weight: 600; letter-spacing: .02em; font-size: .92rem; }
+  nav .brand span { color: var(--gold-soft); }
+  nav .links { margin-left: auto; display: flex; gap: 16px; flex-wrap: wrap; }
+  nav a { color: var(--ink-soft); text-decoration: none; font-size: .85rem; transition: color .2s; }
+  nav a:hover { color: var(--gold-soft); }
+
+  /* ============ 章节通用 ============ */
+  section { padding: 84px 0; }
+  .sec-hero        { background: linear-gradient(var(--g0), var(--g1)); }
+  .sec-timeline    { background: linear-gradient(var(--g1), var(--g2)); }
+  .sec-iceberg     { background: linear-gradient(var(--g2), var(--g3)); }
+  .sec-archetypes  { background: linear-gradient(var(--g3), var(--g4)); }
+  .sec-individuation { background: linear-gradient(var(--g4), var(--g3)); }
+  .sec-sync        { background: linear-gradient(var(--g3), var(--g2)); }
+  .sec-legacy      { background: linear-gradient(var(--g2), var(--g0)); }
+
+  .eyebrow {
+    font-size: .74rem; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--gold-soft); font-weight: 600; margin-bottom: 14px;
+  }
+  .sec-title {
+    font-family: Georgia, "Songti SC", STSong, "SimSun", serif;
+    font-size: clamp(1.7rem, 3.4vw, 2.5rem); font-weight: 600;
+    margin: 0 0 10px;
+  }
+  .sec-lead { color: var(--ink-soft); max-width: 62ch; font-size: 1.02rem; margin-bottom: 34px; }
+  .lead-l { color: var(--gold-soft); font-weight: 600; }
+
+  /* 进入动画 */
+  .reveal { opacity: 0; transform: translateY(16px); transition: opacity .7s ease, transform .7s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { opacity: 1; transform: none; transition: none; }
+    * { animation-duration: .001s !important; }
+  }
+
+  /* ============ 主视觉 ============ */
+  .hero-grid { display: grid; grid-template-columns: 1.25fr .9fr; gap: 40px; align-items: center; }
+  .hero-grid h1 {
+    font-family: Georgia, "Songti SC", STSong, "SimSun", serif;
+    font-size: clamp(3.2rem, 8vw, 5.6rem); font-weight: 700; margin: 6px 0 2px; letter-spacing: .04em;
+  }
+  .hero-grid h1 small { display:block; font-size:.34em; font-weight:400; color: var(--muted); letter-spacing:.06em; margin-top:6px; }
+  .hero-thesis { font-size: 1.12rem; color: var(--ink-soft); max-width: 46ch; margin-top: 18px; }
+  .hero-thesis b { color: var(--ink); }
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px; }
+  .chip {
+    font-size: .78rem; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink-soft);
+  }
+  .chip.gold { border-color: color-mix(in srgb, var(--gold) 45%, transparent); color: var(--gold-soft); }
+  .mandala-wrap { position: relative; display:flex; align-items:center; justify-content:center; }
+  .mandala-wrap svg { width: min(360px, 82%); height: auto; animation: spin 90s linear infinite; }
+  .mandala-wrap svg circle.core { transform-origin: 50% 50%; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .mandala-wrap svg { animation: none; } }
+
+  .hero-foot { margin-top: 54px; display: flex; gap: 18px; flex-wrap: wrap; }
+  .stat { border-left: 2px solid var(--gold); padding-left: 14px; }
+  .stat b { display: block; font-size: 1.5rem; font-family: Georgia, "Songti SC", serif; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .stat span { font-size: .82rem; color: var(--muted); }
+
+  /* ============ 他回答的问题 ============ */
+  .q-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 8px; }
+  .q-card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px;
+    box-shadow: 0 1px 2px var(--shadow);
+  }
+  .q-card .q { font-weight: 600; margin-bottom: 6px; color: var(--ink); }
+  .q-card .q::before { content: "？"; color: var(--gold-soft); margin-right: 8px; font-weight: 700; }
+  .q-card .a { font-size: .92rem; color: var(--ink-soft); }
+
+  /* ============ 时间轴 ============ */
+  .timeline { position: relative; max-width: 780px; margin: 0 auto; padding-left: 26px; }
+  .timeline::before {
+    content:""; position:absolute; left: 8px; top: 4px; bottom: 4px; width: 2px;
+    background: linear-gradient(var(--gold-soft), var(--lapis), var(--sea-deep));
+    opacity:.55; border-radius: 2px;
+  }
+  .t-item { position: relative; padding: 0 0 30px 18px; }
+  .t-item::before {
+    content:""; position:absolute; left: -23px; top: 7px; width: 11px; height: 11px; border-radius: 50%;
+    background: var(--g1); border: 2.5px solid var(--lapis);
+  }
+  .t-item.major::before { border-color: var(--crimson); background: var(--crimson); }
+  .t-item.light::before { border-color: var(--gold); background: var(--gold); }
+  .t-year {
+    font-family: Georgia, "Songti SC", serif; font-size: 1.02rem; font-weight: 700;
+    color: var(--gold-soft); font-variant-numeric: tabular-nums; letter-spacing: .02em;
+  }
+  .t-title { font-weight: 600; font-size: 1.05rem; margin: 2px 0 4px; }
+  .t-desc { color: var(--ink-soft); font-size: .95rem; max-width: 60ch; }
+  .t-desc .hl { color: var(--crimson); font-weight: 600; }
+
+  /* ============ 冰山 ============ */
+  .ice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 34px; align-items: center; }
+  .ice-diagram svg { width: 100%; max-width: 400px; height: auto; margin: 0 auto; display: block; }
+  .ice-band { fill: var(--ice3); transition: fill .35s; cursor: pointer; }
+  .ice-band[data-band="1"] { fill: var(--ice1); }
+  .ice-band[data-band="2"] { fill: var(--ice2); }
+  .ice-band[data-band="3"] { fill: var(--ice3); }
+  .ice-band.active { stroke: var(--gold); stroke-width: 3; }
+  .layer-list { display: flex; flex-direction: column; gap: 12px; }
+  .layer-row {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px;
+    cursor: pointer; transition: border-color .25s, transform .2s;
+  }
+  .layer-row:hover { border-color: var(--gold); transform: translateX(3px); }
+  .layer-row.active { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+  .layer-row .lr-head { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  .layer-row .num {
+    font-family: Georgia, serif; font-size: .78rem; color: var(--gold-soft);
+    border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; font-variant-numeric: tabular-nums;
+  }
+  .layer-row .lr-sub { font-size: .82rem; color: var(--muted); }
+  .layer-row .detail {
+    max-height: 0; overflow: hidden; transition: max-height .4s ease, margin .4s ease;
+    color: var(--ink-soft); font-size: .92rem;
+  }
+  .layer-row.active .detail { max-height: 200px; margin-top: 10px; }
+  .layer-row.active .lr-sub { color: var(--gold-soft); }
+
+  /* ============ 原型 ============ */
+  .arch-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .arch-card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px;
+    box-shadow: 0 1px 2px var(--shadow); transition: transform .2s;
+  }
+  .arch-card:hover { transform: translateY(-3px); }
+  .arch-card h3 { margin: 0 0 2px; font-size: 1.22rem; font-family: Georgia, "Songti SC", serif; }
+  .arch-card .en { font-size: .78rem; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 10px; }
+  .arch-card .sum { color: var(--ink-soft); font-size: .96rem; }
+  .arch-toggle {
+    margin-top: 14px; padding: 7px 14px; font-size: .82rem; cursor: pointer;
+    background: transparent; border: 1px solid var(--line); border-radius: 999px; color: var(--ink-soft);
+    font-family: inherit; transition: all .2s;
+  }
+  .arch-toggle:hover, .arch-card.open .arch-toggle { border-color: var(--gold); color: var(--gold-soft); }
+  .arch-detail { max-height: 0; overflow: hidden; transition: max-height .45s ease; }
+  .arch-card.open .arch-detail { max-height: 260px; }
+  .arch-detail .eg {
+    margin-top: 14px; padding: 12px 14px; border-radius: 10px;
+    background: color-mix(in srgb, var(--gold) 10%, transparent);
+    border-left: 3px solid var(--gold); font-size: .92rem; color: var(--ink);
+  }
+  .arch-detail .eg b { color: var(--gold-soft); }
+  .arch-emoji { font-size: 1.6rem; }
+
+  /* ============ 光谱 + 自性化 ============ */
+  .spectrum { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px 26px; margin-bottom: 40px; }
+  .spec-bar { position: relative; height: 18px; border-radius: 999px; margin: 18px 0 10px;
+    background: linear-gradient(90deg, var(--lapis), var(--gold)); }
+  .spec-bar .knob { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    width: 26px; height: 26px; border-radius: 50%; background: var(--ink); border: 4px solid var(--g1); box-shadow: 0 0 0 2px var(--gold); }
+  .spec-labels { display: flex; justify-content: space-between; font-size: .82rem; color: var(--muted); }
+  .spec-note { font-size: .9rem; color: var(--ink-soft); max-width: 62ch; }
+
+  .stage-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; counter-reset: stage; }
+  .stage {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 18px 20px;
+    position: relative;
+  }
+  .stage::before {
+    counter-increment: stage; content: "0" counter(stage);
+    font-family: Georgia, serif; font-size: .8rem; color: var(--gold-soft);
+    border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; display: inline-block; margin-bottom: 12px;
+  }
+  .stage h4 { margin: 0 0 6px; font-size: 1.02rem; }
+  .stage p { font-size: .88rem; color: var(--ink-soft); margin: 0; }
+
+  /* ============ 共时性 ============ */
+  .sync-box {
+    background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+    padding: 34px 38px; max-width: 720px; margin: 0 auto; text-align: center;
+  }
+  .sync-box .big { font-size: 2.2rem; }
+  .sync-box h3 { font-family: Georgia, "Songti SC", serif; font-size: 1.6rem; margin: 8px 0 14px; }
+  .sync-box p { color: var(--ink-soft); font-size: .98rem; max-width: 52ch; margin: 0 auto 12px; }
+  .sync-box .tag { display:inline-block; font-size:.78rem; color: var(--muted); border:1px solid var(--line); border-radius:999px; padding:4px 12px; margin-top:6px; }
+
+  /* ============ 遗产 ============ */
+  .legacy-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .legacy {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px;
+    display: grid; grid-template-columns: 44px 1fr; gap: 16px; align-items: start;
+  }
+  .legacy .ico { font-size: 1.7rem; text-align: center; }
+  .legacy h4 { margin: 0 0 6px; font-size: 1.08rem; }
+  .legacy p { margin: 0; font-size: .93rem; color: var(--ink-soft); }
+  .further { margin-top: 34px; font-size: .92rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 20px; }
+  .further b { color: var(--gold-soft); }
+
+  /* ============ 结尾 ============ */
+  .closing {
+    background: var(--ink); color: var(--on-ink); text-align: center; padding: 90px 22px;
+  }
+  .closing .mandala-mini { width: 64px; margin: 0 auto 22px; opacity: .9; }
+  .closing blockquote {
+    font-family: Georgia, "Songti SC", STSong, serif; font-size: clamp(1.4rem, 3vw, 2rem);
+    max-width: 22ch; margin: 0 auto 18px; line-height: 1.5;
+  }
+  .closing .who { color: color-mix(in srgb, var(--on-ink) 65%, transparent); font-size: .9rem; letter-spacing: .08em; }
+  .closing .who b { color: var(--gold); font-weight: 600; }
+  .closing footer { margin-top: 46px; font-size: .78rem; opacity: .55; letter-spacing: .04em; }
+
+  /* ============ 响应式 ============ */
+  @media (max-width: 860px) {
+    .hero-grid, .ice-grid { grid-template-columns: 1fr; }
+    .q-grid, .arch-grid, .legacy-grid { grid-template-columns: 1fr; }
+    .stage-grid { grid-template-columns: repeat(2, 1fr); }
+    section { padding: 64px 0; }
+    nav .links { gap: 10px; }
+  }
+  @media (max-width: 480px) {
+    .stage-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<nav>
+  <div class="container">
+    <div class="brand serif">荣格<span>·深海地图</span></div>
+    <div class="links">
+      <a href="#story">一生</a>
+      <a href="#iceberg">心灵冰山</a>
+      <a href="#archetypes">原型</a>
+      <a href="#individuation">成为自己</a>
+      <a href="#sync">共时性</a>
+      <a href="#legacy">遗产</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ 主视觉 ============ -->
+<section class="sec-hero" id="top">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        <div class="eyebrow">从0开始认识 · 心理学</div>
+        <h1 class="serif">荣格<small>Carl Gustav Jung · 1875—1961</small></h1>
+        <p class="hero-thesis">他是<b>"内心深海"的制图师</b>：告诉我们人格像一座冰山——水面下藏着一个不属于你个人的巨大潜意识，而每个人一生的课题，是把自己内心四分五裂的部分重新拼成<b>一个完整的自己</b>。</p>
+        <div class="chips">
+          <span class="chip gold">瑞士 · 分析心理学创始人</span>
+          <span class="chip">弗洛伊德的著名"叛逆继承人"</span>
+          <span class="chip">曼陀罗画家</span>
+        </div>
+      </div>
+      <div class="mandala-wrap" aria-hidden="true">
+        <svg viewBox="0 0 400 400" role="presentation">
+          <g class="core">
+            <circle cx="200" cy="200" r="184" fill="none" stroke="var(--gold)" stroke-width="1.4" opacity=".55"/>
+            <circle cx="200" cy="200" r="148" fill="none" stroke="var(--gold)" stroke-width=".7" opacity=".35"/>
+            <circle cx="200" cy="200" r="112" fill="none" stroke="var(--gold)" stroke-width=".7" opacity=".3"/>
+            <circle cx="200" cy="200" r="76" fill="none" stroke="var(--gold)" stroke-width="1.1" opacity=".5"/>
+            <g stroke="var(--gold)" stroke-width=".6" opacity=".28">
+              <line x1="200" y1="76" x2="200" y2="184"/>
+              <line x1="200" y1="324" x2="200" y2="216"/>
+              <line x1="76" y1="200" x2="184" y2="200"/>
+              <line x1="324" y1="200" x2="216" y2="200"/>
+              <line x1="112" y1="112" x2="172" y2="172"/>
+              <line x1="288" y1="288" x2="228" y2="228"/>
+              <line x1="288" y1="112" x2="228" y2="172"/>
+              <line x1="112" y1="288" x2="172" y2="228"/>
+            </g>
+            <g fill="var(--gold)" opacity=".7">
+              <circle cx="200" cy="138" r="3"/><circle cx="262" cy="162" r="3"/>
+              <circle cx="262" cy="238" r="3"/><circle cx="200" cy="262" r="3"/>
+              <circle cx="138" cy="238" r="3"/><circle cx="138" cy="162" r="3"/>
+            </g>
+            <circle cx="200" cy="200" r="42" fill="none" stroke="var(--gold)" stroke-width="1.6"/>
+            <circle cx="200" cy="200" r="10" fill="var(--gold)"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <div class="hero-foot">
+      <div class="stat"><b>1875–1961</b><span>横跨两次世界大战的一生</span></div>
+      <div class="stat"><b>20+</b><span>卷著作，其中《红书》等传世</span></div>
+      <div class="stat"><b>2</b><span>个核心词：集体无意识 · 自性化</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 他回答的问题 ============ -->
+<section class="sec-hero">
+  <div class="container reveal">
+    <div class="eyebrow">他为什么重要</div>
+    <h2 class="sec-title">每个人都会问的问题，他用一生来回答</h2>
+    <div class="q-grid">
+      <div class="q-card">
+        <div class="q">我为什么是这样的性格？</div>
+        <div class="a">不只因为成长经历，还因为人类共有的深层心灵——那些"天生就长在所有人身上"的倾向。</div>
+      </div>
+      <div class="q-card">
+        <div class="q">我为什么做这些怪梦？</div>
+        <div class="a">梦不是乱码，是潜意识用画面和符号写给你的信。他花了几十年学会"读信"。</div>
+      </div>
+      <div class="q-card">
+        <div class="q">我总想成为"别人"，怎么办？</div>
+        <div class="a">他的答案是"自性化"——不变成谁，而是把真实的自己完整地拼回来。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 一生 ============ -->
+<section class="sec-timeline" id="story">
+  <div class="container reveal">
+    <div class="eyebrow">第 1 站 · 他的一生</div>
+    <h2 class="sec-title">一个向内走的人</h2>
+    <p class="sec-lead">荣格不是坐在书斋里的理论家，而是亲手下潜过自己内心的人。他的人生就是一部"从精神病房到内心深海"的探险史。</p>
+    <div class="timeline">
+      <div class="t-item">
+        <div class="t-year">1875</div>
+        <div class="t-title">出生：一个会跟石头说话的男孩</div>
+        <div class="t-desc">生于瑞士牧师家庭。他从小内心世界就极丰富：能跟花园里一块石头"对话"，坚信心里有个别人看不见的世界。这份孤独，后来成了他的素材。</div>
+      </div>
+      <div class="t-item">
+        <div class="t-year">1900—1906</div>
+        <div class="t-title">学医与"词语联想实验"</div>
+        <div class="t-desc">在苏黎世精神病院工作。他让病人听到一个词立刻说出脑中联想，发现某些词会让反应明显变慢——他称之为<span class="hl">情结</span>：藏在你心里的情绪火药库，一碰就炸。</div>
+      </div>
+      <div class="t-item">
+        <div class="t-year">1907</div>
+        <div class="t-title">遇见弗洛伊德：一见如故</div>
+        <div class="t-desc">两人连续畅谈 13 小时。弗洛伊德称他为"王储"，视他为继承人；他则视弗洛伊德如精神上的父亲。</div>
+      </div>
+      <div class="t-item major">
+        <div class="t-year">1913</div>
+        <div class="t-title">决裂：与父亲"分手"</div>
+        <div class="t-desc">因核心分歧分道扬镳——弗洛伊德认为一切心理问题都源于性，荣格认为无意识里还住着更深、更古老的东西。决裂后他陷入巨大崩溃，出现幻象、濒临精神失控。</div>
+      </div>
+      <div class="t-item light">
+        <div class="t-year">1914—1930</div>
+        <div class="t-title">最黑暗也最丰饶：《红书》时期</div>
+        <div class="t-desc">他主动下潜进无意识，把幻象、梦境、与内心人物的对话一字一句记下来，还画满曼陀罗——这就是轰动后世的《红书》。他在深渊里捡回了自己的理论。</div>
+      </div>
+      <div class="t-item">
+        <div class="t-year">1921</div>
+        <div class="t-title">《心理类型》：内向与外向</div>
+        <div class="t-desc">提出人格有<span class="hl">内倾 / 外倾</span>两种基本态度，配上四种心理功能。一百年后，它演化成了全世界最流行的 MBTI 人格测试。</div>
+      </div>
+      <div class="t-item">
+        <div class="t-year">1952</div>
+        <div class="t-title">共时性：与物理学家泡利联手</div>
+        <div class="t-desc">晚年提出"有意义的巧合"原理，试图解释那些"太巧了"的瞬间。</div>
+      </div>
+      <div class="t-item light">
+        <div class="t-year">1961</div>
+        <div class="t-title">离去：湖畔的智者</div>
+        <div class="t-desc">在家乡湖畔去世，享年 85 岁。墓碑上刻着他设计的徽记，他的最后一本书是自传《回忆·梦·省思》。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 心灵冰山 ============ -->
+<section class="sec-iceberg" id="iceberg">
+  <div class="container reveal">
+    <div class="eyebrow">第 2 站 · 核心模型</div>
+    <h2 class="sec-title">心灵的冰山</h2>
+    <p class="sec-lead">荣格最重要的发现：你的心灵不止有"看得见"的部分。点击下面的层次，看每一层住着什么。</p>
+    <div class="ice-grid">
+      <div class="ice-diagram">
+        <svg viewBox="0 0 400 560" role="img" aria-label="心灵冰山示意图：意识在最上方，个人无意识在中层，集体无意识在最深处">
+          <defs>
+            <clipPath id="iceClip">
+              <path d="M 118 172 L 116 130 Q 156 84 200 84 Q 244 84 284 130 L 282 172 L 344 252 L 360 384 L 326 546 L 74 546 L 40 384 L 56 252 Z"/>
+            </clipPath>
+            <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--sea)"/>
+              <stop offset="1" stop-color="var(--sea-deep)"/>
+            </linearGradient>
+          </defs>
+          <g clip-path="url(#iceClip)">
+            <rect class="ice-band" data-band="1" x="0" y="0" width="400" height="180"/>
+            <rect class="ice-band" data-band="2" x="0" y="180" width="400" height="180"/>
+            <rect class="ice-band" data-band="3" x="0" y="360" width="400" height="240"/>
+            <path d="M 118 172 L 116 130 Q 156 84 200 84 Q 244 84 284 130 L 282 172 L 344 252 L 360 384 L 326 546 L 74 546 L 40 384 L 56 252 Z"
+                  fill="none" stroke="var(--line)" stroke-width="2"/>
+          </g>
+          <rect x="0" y="150" width="400" height="410" fill="url(#waterGrad)" opacity=".5"/>
+          <path d="M 0 150 Q 20 143 40 150 T 80 150 T 120 150 T 160 150 T 200 150 T 240 150 T 280 150 T 320 150 T 360 150 T 400 150"
+                fill="none" stroke="var(--gold)" stroke-width="2" opacity=".9"/>
+          <text x="200" y="126" text-anchor="middle" font-size="14" fill="var(--ink)" font-weight="600">意识</text>
+          <text x="206" y="268" text-anchor="middle" font-size="13" fill="var(--ink)" opacity=".85">个人无意识</text>
+          <text x="212" y="452" text-anchor="middle" font-size="13" fill="var(--ink)" opacity=".9">集体无意识</text>
+          <text x="200" y="172" text-anchor="middle" font-size="11" fill="var(--ink-soft)">← 海面</text>
+        </svg>
+      </div>
+      <div class="layer-list" role="tablist" aria-label="冰山各层说明">
+        <div class="layer-row" data-layer="1" role="tab" tabindex="0" aria-selected="false">
+          <div class="lr-head"><span class="num">01</span> 意识
+            <span class="lr-sub"> · 此刻你能感知到的一切</span></div>
+          <div class="detail">你正在读这句话、此刻的情绪、记得住的记忆——由"自我(Ego)"当船长。这是冰山露出水面的一小截，只占很小一部分。</div>
+        </div>
+        <div class="layer-row" data-layer="2" role="tab" tabindex="0" aria-selected="false">
+          <div class="lr-head"><span class="num">02</span> 个人无意识
+            <span class="lr-sub"> · 你的专属"地下室"</span></div>
+          <div class="detail">被遗忘的童年、被压抑的冲动、那些"突然想不起来"的事，都堆在这里，还会抱团成"情结"——某个主题的小火球，比如"我总在讨好别人"。它是属于你自己的个人经验。</div>
+        </div>
+        <div class="layer-row" data-layer="3" role="tab" tabindex="0" aria-selected="false">
+          <div class="lr-head"><span class="num">03</span> 集体无意识
+            <span class="lr-sub"> · 全人类共有的深海</span></div>
+          <div class="detail">荣格最惊人的发现：最深处不属于任何个人，而是全人类基因般共享的心理底层。神话、童话、所有文化里的同款故事都从这里长出来。住在这里的"居民"，就是下一站的原型。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 原型 ============ -->
+<section class="sec-archetypes" id="archetypes">
+  <div class="container reveal">
+    <div class="eyebrow">第 3 站 · 深海的居民</div>
+    <h2 class="sec-title">四大原型：长在所有人身上的"出厂设置"</h2>
+    <p class="sec-lead">原型(Archetype)像电脑里的默认程序：每个文化、每个时代的人心里都有，只是长得不一样。点击卡片看它在日常生活中的样子。</p>
+    <div class="arch-grid">
+      <div class="arch-card">
+        <div class="arch-emoji">🎭</div>
+        <h3>人格面具</h3>
+        <div class="en">Persona · "persona"本义就是"面具"</div>
+        <p class="sum">你戴给世界看的那张脸：上班时专业干练的你、朋友圈里热爱生活的你。</p>
+        <button class="arch-toggle" aria-expanded="false">看日常例子</button>
+        <div class="arch-detail"><div class="eg"><b>日常例子：</b>面试时你演"自信的求职者"，回父母家你演"懂事的孩子"。面具没有错——没有它我们无法社交。危险的是戴久了，以为面具就是脸，忘了真实的自己。</div></div>
+      </div>
+      <div class="arch-card">
+        <div class="arch-emoji">🌑</div>
+        <h3>阴影</h3>
+        <div class="en">Shadow</div>
+        <p class="sum">你不愿意承认的那个自己：嫉妒、愤怒、控制欲、暗处的心愿。它被压进无意识，但不会消失。</p>
+        <button class="arch-toggle" aria-expanded="false">看日常例子</button>
+        <div class="arch-detail"><div class="eg"><b>日常例子：</b>你对某个同事莫名烦躁，其实是在他身上看见了自己讨厌的那一面。荣格说：阴影不是要消灭的敌人，而是要请回餐桌上的一家人——接纳它，人才完整。</div></div>
+      </div>
+      <div class="arch-card">
+        <div class="arch-emoji">🌗</div>
+        <h3>阿尼玛 / 阿尼姆斯</h3>
+        <div class="en">Anima / Animus · 你内在的"异性"</div>
+        <p class="sum">每个男人心里住着一个女性面向(阿尼玛)，每个女人心里住着一个男性面向(阿尼姆斯)。</p>
+        <button class="arch-toggle" aria-expanded="false">看日常例子</button>
+        <div class="arch-detail"><div class="eg"><b>日常例子：</b>"一见钟情""灵魂伴侣"——你怦然心动的，常常是你心里那个内在形象的投射，而不是眼前这个完整的人。整合它的过程，也是理解异性的过程。</div></div>
+      </div>
+      <div class="arch-card">
+        <div class="arch-emoji">☀️</div>
+        <h3>自性</h3>
+        <div class="en">Self · 整个心灵的圆心</div>
+        <p class="sum">它不是你平时说的"自我"，而是整个心灵(意识+无意识)的中心与原动力。荣格画它时，常画成曼陀罗。</p>
+        <button class="arch-toggle" aria-expanded="false">看日常例子</button>
+        <div class="arch-detail"><div class="eg"><b>日常例子：</b>做重要的决定、或经历重大转折时，你会突然"整个人都在场"——那就是自性在指挥。梦里的太阳、宝石、圆满的圆，都是它在向你报到。</div></div>
+      </div>
+    </div>
+    <p class="sec-lead" style="margin-top:26px; font-size:.95rem;">原型不是角色扮演，而是所有故事的通用元件：英雄、智者、母亲、恶魔……你在电影和神话里看到的所有经典角色，几乎都能在原型库里找到出处。</p>
+  </div>
+</section>
+
+<!-- ============ 内向·外向 + 自性化 ============ -->
+<section class="sec-individuation" id="individuation">
+  <div class="container reveal">
+    <div class="eyebrow">第 4 站 · 性格光谱</div>
+    <h2 class="sec-title">内向，还是外向？荣格是第一个问这个问题的人</h2>
+    <p class="sec-lead">在 MBTI 火遍全球之前，是荣格首先提出：人天生就有不同的能量方向。</p>
+    <div class="spectrum">
+      <div class="spec-bar"><div class="knob"></div></div>
+      <div class="spec-labels"><span>内向 Introv.</span><span>大多数人在中间</span><span>外向 Extrav.</span></div>
+      <p class="spec-note">内倾的人能量向内流动——独处是充电，社交是耗电；外倾的人反之——热闹是充电，独处是耗电。没有哪个更好，荣格说：<b>真正的成熟，是两边的开关都能自己掌握</b>。</p>
+    </div>
+
+    <div class="eyebrow" style="margin-top:8px;">第 5 站 · 一生的课题</div>
+    <h2 class="sec-title">自性化：成为自己，而不是变成"别人"</h2>
+    <p class="sec-lead">荣格认为，人一生的心理任务不是"变得完美"，而是<b>整合</b>——把分裂的部分拼成一个完整的人。这个过程他叫"自性化"(Individuation)。</p>
+    <div class="stage-grid">
+      <div class="stage">
+        <h4>看见面具</h4>
+        <p>先认出你一直在扮演的角色，区分"这是社会要的我"和"这是我"。</p>
+      </div>
+      <div class="stage">
+        <h4>迎接阴影</h4>
+        <p>不再逃避那个不体面、不温柔的自己，把它请回餐桌。</p>
+      </div>
+      <div class="stage">
+        <h4>整合内在异性</h4>
+        <p>让内心的阿尼玛/阿尼姆斯从"冲动的本能"长成"内在的对话者"。</p>
+      </div>
+      <div class="stage">
+        <h4>走向自性</h4>
+        <p>不再死守"我"这个小小的中心，获得一种整全、安宁的存在感。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 共时性 ============ -->
+<section class="sec-sync" id="sync">
+  <div class="container reveal">
+    <div class="sync-box">
+      <div class="big">⚡</div>
+      <h3>共时性：那些"太巧了"的瞬间</h3>
+      <p>你正想着一个老朋友，下一秒他就打来电话；梦里出现的画面，几天后竟然发生。荣格称之为<b>共时性(Synchronicity)</b>——有些"巧合"不是偶然，而是一种比因果更深的同步。</p>
+      <p>这是他对科学最"越界"也最迷人的贡献：与诺贝尔奖得主、物理学家泡利合作提出，至今科学界仍有争议——但它解释了人类共通的一种心灵体验。</p>
+      <span class="tag">"有意义的巧合" · 1952</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 遗产 ============ -->
+<section class="sec-legacy" id="legacy">
+  <div class="container reveal">
+    <div class="eyebrow">第 6 站 · 他留下的</div>
+    <h2 class="sec-title">今天你还在用他的词</h2>
+    <p class="sec-lead">你未必读过荣格，但你大概用过他的遗产——他渗进了测试卷、电影和日常语言里。</p>
+    <div class="legacy-grid">
+      <div class="legacy">
+        <div class="ico">🧬</div>
+        <div><h4>MBTI 人格测试</h4><p>全球最流行的人格分类法，直接源于《心理类型》——尽管被大大简化，核心仍是荣格的"内倾/外倾 × 四种功能"。</p></div>
+      </div>
+      <div class="legacy">
+        <div class="ico">🏛️</div>
+        <div><h4>英雄之旅</h4><p>神话学家约瑟夫·坎贝尔以荣格的原型理论为基石，提出了《千面英雄》。《星球大战》、迪士尼动画几乎都是它的翻版。</p></div>
+      </div>
+      <div class="legacy">
+        <div class="ico">📕</div>
+        <div><h4>《红书》现象</h4><p>这部神秘的手稿在 2009 年出版后轰动全球——人们第一次看见一个思想家如何与自己的内心搏斗，并把搏斗画成了艺术。</p></div>
+      </div>
+      <div class="legacy">
+        <div class="ico">🎭</div>
+        <div><h4>日常用语</h4><p>"阴影""人格面具""共时性""原生家庭"背后的潜意识语言——都是从他那里进入大众视野的词。</p></div>
+      </div>
+    </div>
+    <p class="further"><b>延伸阅读：</b>想真正认识他，从《荣格自传：回忆·梦·省思》开始——那是一本他亲笔写下的"向内之旅"；想快速了解理论，可读《简析荣格》或观看公开课《荣格心理学导论》。</p>
+  </div>
+</section>
+
+<!-- ============ 结尾 ============ -->
+<section class="closing">
+  <svg class="mandala-mini" viewBox="0 0 64 64" aria-hidden="true">
+    <circle cx="32" cy="32" r="30" fill="none" stroke="var(--gold)" stroke-width="1"/>
+    <circle cx="32" cy="32" r="22" fill="none" stroke="var(--gold)" stroke-width=".6" opacity=".6"/>
+    <circle cx="32" cy="32" r="14" fill="none" stroke="var(--gold)" stroke-width=".6" opacity=".6"/>
+    <circle cx="32" cy="32" r="5" fill="var(--gold)"/>
+  </svg>
+  <blockquote>向外看的人在做梦，<br>向内看的人已醒来。</blockquote>
+  <div class="who">—— <b>荣格</b>（广为流传的荣格箴言）</div>
+  <footer>荣格·深海地图 · 从0开始认识 Carl Gustav Jung · 1875—1961</footer>
+</section>
+
+<script>
+  // 冰山分层点击高亮
+  (function () {
+    var rows = document.querySelectorAll('.layer-row');
+    function clear() {
+      rows.forEach(function (r) { r.classList.remove('active'); r.setAttribute('aria-selected', 'false'); });
+      document.querySelectorAll('.ice-band').forEach(function (b) { b.classList.remove('active'); });
+    }
+    rows.forEach(function (row) {
+      function toggle() {
+        var isActive = row.classList.contains('active');
+        clear();
+        if (!isActive) {
+          row.classList.add('active'); row.setAttribute('aria-selected', 'true');
+          var band = document.querySelector('.ice-band[data-band="' + row.dataset.layer + '"]');
+          if (band) band.classList.add('active');
+        }
+      }
+      row.addEventListener('click', toggle);
+      row.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    });
+  })();
+
+  // 原型卡片展开
+  (function () {
+    document.querySelectorAll('.arch-card').forEach(function (card) {
+      var btn = card.querySelector('.arch-toggle');
+      btn.addEventListener('click', function () {
+        var open = card.classList.toggle('open');
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+    });
+  })();
+
+  // 滚动渐入
+  (function () {
+    if (!('IntersectionObserver' in window)) {
+      document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+{
+  "version": "1.0",
+  "desc": "TopAgent 10步流水线 — 数据驱动的执行定义。编排器 top-agent-orchestrator.py 以此为准强制顺序与门禁。",
+  "max_retries": 3,
+  "steps_order": [
+    "step_1", "step_2", "step_3", "step_4", "step_5", "step_6",
+    "step_7", "step_8", "step_8.5", "step_8.6", "step_9", "step_10"
+  ],
+  "steps": {
+    "step_1": {
+      "name": "理解需求",
+      "desc": "澄清模糊点，确认交付标准",
+      "spawn": [],
+      "gate": { "type": "user_confirm", "desc": "需求澄清后，用户确认交付标准", "requires_cost_estimate": true }
+    },
+    "step_2": {
+      "name": "分析拆解",
+      "desc": "功能模块分解 + 风险识别",
+      "spawn": [],
+      "gate": { "type": "two_stage", "fact_check_min": 70, "qa_min": 85 }
+    },
+    "step_3": {
+      "name": "研究检索",
+      "desc": "联网搜开源项目/Skill + 查知识库经验与陷阱",
+      "spawn": [
+        { "agent": "skill-hunter", "task": "搜索与当前需求相关的开源项目、Skill、工具（每条结论带来源URL）", "inputs": ["requirements"], "outputs": ["research_findings"] },
+        { "agent": "memory-learning-agent", "task": "检索知识库中相关的历史经验和陷阱预警（每条带来源引用）", "inputs": ["requirements", "research_findings"], "outputs": ["memory_results"] }
+      ],
+      "gate": { "type": "two_stage", "fact_check_min": 70, "qa_min": 85 }
+    },
+    "step_4": {
+      "name": "规划架构",
+      "desc": "六层架构 + 技术选型对比 + ADR记录",
+      "spawn": [
+        { "agent": "architect-agent", "task": "设计系统六层架构 + 技术选型对比 + ADR记录", "inputs": ["requirements", "research_findings", "memory_results"], "outputs": ["architecture_plan"] }
+      ],
+      "gate": { "type": "two_stage", "fact_check_min": 70, "qa_min": 85, "user_confirm_after": true, "requires_cost_estimate": true }
+    },
+    "step_5": {
+      "name": "组建团队",
+      "desc": "根据架构方案创建所需Agent定义和Skill",
+      "spawn": [
+        { "agent": "agent-forge-agent", "task": "根据架构方案创建所需Agent定义和Skill", "inputs": ["architecture_plan"], "outputs": ["agent_definitions"] }
+      ],
+      "gate": { "type": "two_stage", "fact_check_min": 70, "qa_min": 85 }
+    },
+    "step_6": {
+      "name": "分配任务",
+      "desc": "功能模块映射到 Agent + 初始化 Dashboard",
+      "spawn": [],
+      "gate": { "type": "none" }
+    },
+    "step_7": {
+      "name": "监督执行",
+      "desc": "并行启动开发 Agent + 监控进度",
+      "spawn": [
+        { "agent": "frontend-agent", "task": "UI实现+组件+状态管理", "inputs": ["architecture_plan", "agent_definitions"], "outputs": ["frontend_code"] },
+        { "agent": "backend-agent", "task": "API服务+数据库+缓存队列", "inputs": ["architecture_plan", "agent_definitions"], "outputs": ["backend_code"] },
+        { "agent": "ai-engineer-agent", "task": "LLM/RAG/Agent + 微调 + 训练数据", "inputs": ["architecture_plan"], "outputs": ["ai_code"] },
+        { "agent": "test-agent", "task": "质量验证+Bug报告+性能测试", "inputs": ["backend_code", "frontend_code"], "outputs": ["test_report"] }
+      ],
+      "gate": { "type": "two_stage", "fact_check_min": 70, "qa_min": 85 }
+    },
+    "step_8": {
+      "name": "质量终审",
+      "desc": "对全部产出做最终独立质量审核（两级门禁的收口）",
+      "spawn": [
+        { "agent": "qa-agent", "task": "对全部产出物做5维独立质量审核，输出结构化裁决JSON", "inputs": ["deliverables"], "outputs": ["qa_verdict"] }
+      ],
+      "gate": { "type": "verdict" }
+    },
+    "step_8.5": {
+      "name": "反失败分析",
+      "desc": "失败触发时三维分析根因 + 止血/改进/升级",
+      "spawn": [
+        { "agent": "failure-analysis-agent", "task": "三维分析失败根因 + 止血+改进+升级方案", "inputs": ["qa_verdict", "error_logs"], "outputs": ["failure_report"] }
+      ],
+      "gate": { "type": "verdict" }
+    },
+    "step_8.6": {
+      "name": "质量评分与淘汰",
+      "desc": "5维加权评分 + 更新历史 + 淘汰触发",
+      "spawn": [
+        { "agent": "eval-benchmark-agent", "task": "按评分系统5维加权评分+更新memory/agent-scoring-system.md+输出淘汰令", "inputs": ["qa_verdict", "deliverables", "agent_definitions"], "outputs": ["agent_scores", "elimination_orders"] }
+      ],
+      "gate": { "type": "verdict" }
+    },
+    "step_9": {
+      "name": "总结学习",
+      "desc": "训练数据整理 + 文档 + 知识沉淀",
+      "spawn": [
+        { "agent": "data-curator-agent", "task": "整理项目数据、生成训练数据格式", "inputs": ["project_outputs"], "outputs": ["training_data"] }
+      ],
+      "gate": { "type": "two_stage", "fact_check_min": 70, "qa_min": 85 }
+    },
+    "step_10": {
+      "name": "能力进化",
+      "desc": "基准评估 + A/B对比 + 回归检测",
+      "spawn": [
+        { "agent": "eval-benchmark-agent", "task": "对Agent团队进行基准评估和回归检测", "inputs": ["agent_definitions", "project_results"], "outputs": ["eval_report"] }
+      ],
+      "gate": { "type": "verdict" }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "capability_id": "agent-runtime-identity",
+  "name": "Agent 执行身份与独立性证据",
+  "status": "partial",
+  "maturity": "L2-verified",
+  "owner": "topagent-runtime",
+  "entrypoint": "topagent.core.context.execution_identity",
+  "execution_code": "topagent/core/context.py",
+  "tests": ["tests/test_dispatcher.py"],
+  "runtime_artifacts": ["executions.execution_id", "messages.sender_execution_id", "agent_presence"],
+  "metrics": ["distinct execution_id", "agent_id", "backend", "model", "worker heartbeat"],
+  "failure_recovery": "未认证 MCP 发送方被标记 attested=false；不存在的 execution_id 被拒绝",
+  "audit": ["attestation_json", "sender_execution_id", "agent_presence"],
+  "limitations": ["Agent 文件本身只是定义", "同一模型进程中的角色提示不等于独立 Agent", "只有被 Dispatcher 启动并产生 execution_id 的实例才算运行中；进程/主机级隔离仍待实现"],
+  "verification": {"command": "python -m unittest tests.test_dispatcher -v", "last_verified_at": "2026-08-17"}
+}

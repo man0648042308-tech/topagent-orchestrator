@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>女装视觉销量模型</title>
+<style>
+  /* ===== 主题令牌（浅/深/跟随系统 三态） ===== */
+  :root {
+    --g0:#f7f5f1; --g1:#f0efe9; --g2:#e8e6df; --g3:#e0ded6; --g4:#d8d5cc;
+    --ink:#232832; --ink-soft:#4d5360; --muted:#767b87;
+    --rose:#c04a46; --rose-soft:#a03f3c; --teal:#2f6f6a;
+    --gold:#b8862e; --good:#2f8f5b; --bad:#c0392b;
+    --card:rgba(255,255,255,.66); --line:rgba(35,40,50,.14); --shadow:rgba(35,40,50,.10);
+    --track:#d9d6cd;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --g0:#191d29; --g1:#161a25; --g2:#131721; --g3:#10141d; --g4:#0d1019;
+      --ink:#ece9e0; --ink-soft:#c3bfb1; --muted:#96937f;
+      --rose:#dd6a64; --rose-soft:#e08b86; --teal:#5aa39c;
+      --gold:#d9b15c; --good:#5fbf86; --bad:#e2685b;
+      --card:rgba(22,26,37,.7); --line:rgba(236,233,224,.13); --shadow:rgba(0,0,0,.35);
+      --track:#3a4152;
+    }
+  }
+  :root[data-theme="dark"] {
+    --g0:#191d29; --g1:#161a25; --g2:#131721; --g3:#10141d; --g4:#0d1019;
+    --ink:#ece9e0; --ink-soft:#c3bfb1; --muted:#96937f;
+    --rose:#dd6a64; --rose-soft:#e08b86; --teal:#5aa39c;
+    --gold:#d9b15c; --good:#5fbf86; --bad:#e2685b;
+    --card:rgba(22,26,37,.7); --line:rgba(236,233,224,.13); --shadow:rgba(0,0,0,.35);
+    --track:#3a4152;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; color: var(--ink); background: var(--g0); line-height: 1.7;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,h2,h3,h4 { line-height:1.25; text-wrap:balance; }
+  .serif { font-family: Georgia, "Songti SC", STSong, "SimSun", serif; }
+  .container { max-width: 1120px; margin: 0 auto; padding: 0 22px; }
+  .num { font-variant-numeric: tabular-nums; }
+  p { margin: 0 0 1em; }
+  section { padding: 70px 0; }
+  .bg1 { background: linear-gradient(var(--g0), var(--g1)); }
+  .bg2 { background: linear-gradient(var(--g1), var(--g2)); }
+  .bg3 { background: linear-gradient(var(--g2), var(--g3)); }
+  .eyebrow { font-size:.74rem; letter-spacing:.16em; text-transform:uppercase; color:var(--rose-soft); font-weight:600; margin-bottom:12px; }
+  .sec-title { font-family: Georgia,"Songti SC",STSong,serif; font-size: clamp(1.6rem,3.2vw,2.3rem); margin:0 0 10px; font-weight:600; }
+  .sec-lead { color:var(--ink-soft); max-width:66ch; font-size:1rem; margin-bottom:30px; }
+  .reveal { opacity:0; transform:translateY(14px); transition:opacity .6s ease, transform .6s ease; }
+  .reveal.in { opacity:1; transform:none; }
+  @media (prefers-reduced-motion:reduce){ .reveal{opacity:1;transform:none;transition:none;} *{animation-duration:.001s !important;} }
+
+  /* ===== 顶栏 ===== */
+  header {
+    position:sticky; top:0; z-index:40;
+    backdrop-filter:blur(10px);
+    background: color-mix(in srgb, var(--g0) 80%, transparent);
+    border-bottom:1px solid var(--line);
+  }
+  header .container { display:flex; align-items:center; gap:18px; padding-top:10px; padding-bottom:10px; flex-wrap:wrap; }
+  header .brand { font-weight:700; font-size:.95rem; letter-spacing:.02em; }
+  header .brand span { color:var(--rose-soft); }
+  header .links { margin-left:auto; display:flex; gap:14px; flex-wrap:wrap; }
+  header a { color:var(--ink-soft); text-decoration:none; font-size:.84rem; transition:color .2s; }
+  header a:hover { color:var(--rose-soft); }
+
+  /* ===== 首屏 KPI ===== */
+  .hero { padding:64px 0 56px; }
+  .hero h1 { font-family:Georgia,"Songti SC",STSong,serif; font-size:clamp(2.1rem,5vw,3.2rem); margin:0 0 12px; }
+  .hero h1 em { font-style:normal; color:var(--rose-soft); }
+  .hero-sub { color:var(--ink-soft); font-size:1.05rem; max-width:64ch; margin-bottom:8px; }
+  .chips { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+  .chip { font-size:.76rem; padding:5px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--ink-soft); }
+  .chip.hot { border-color:color-mix(in srgb,var(--rose) 45%,transparent); color:var(--rose-soft); }
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:36px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px 20px; box-shadow:0 1px 2px var(--shadow); }
+  .kpi .k { font-size:.78rem; color:var(--muted); letter-spacing:.04em; }
+  .kpi .v { font-family:Georgia,"Songti SC",serif; font-size:2rem; font-weight:700; line-height:1.1; margin:4px 0 2px; }
+  .kpi .s { font-size:.8rem; color:var(--ink-soft); }
+  .kpi .up { color:var(--good); } .kpi .down { color:var(--bad); }
+  .kpi .v.accent { color:var(--rose-soft); }
+
+  /* ===== 卡片 ===== */
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:22px 24px; box-shadow:0 1px 2px var(--shadow); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .grid2-35 { display:grid; grid-template-columns:1fr 1.4fr; gap:18px; align-items:start; }
+
+  /* ===== 评分器 ===== */
+  .panel-title { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .panel-title h3 { margin:0; font-size:1.15rem; }
+  .badge { font-size:.72rem; padding:3px 10px; border-radius:999px; font-weight:600; letter-spacing:.03em; }
+  .badge.a { background:color-mix(in srgb,var(--rose) 16%,transparent); color:var(--rose-soft); }
+  .badge.b { background:color-mix(in srgb,var(--teal) 16%,transparent); color:var(--teal); }
+  .gauge-row { display:flex; align-items:center; gap:14px; margin:10px 0 18px; }
+  .gauge-num { font-family:Georgia,serif; font-size:2.2rem; font-weight:700; min-width:88px; }
+  .gauge-num small { font-size:.8rem; color:var(--muted); font-family:-apple-system,"PingFang SC",sans-serif; }
+  .gauge-bar { flex:1; height:10px; border-radius:999px; background:var(--track); overflow:hidden; }
+  .gauge-bar i { display:block; height:100%; border-radius:999px; width:0%; transition:width .35s ease; }
+  .gauge-bar i.img { background:linear-gradient(90deg,var(--teal),var(--rose)); }
+  .gauge-bar i.det { background:linear-gradient(90deg,var(--teal),var(--gold)); }
+
+  .slider-row { padding:10px 0; border-bottom:1px dashed var(--line); }
+  .slider-row:last-child { border-bottom:none; }
+  .sl-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+  .sl-name { font-weight:600; font-size:.93rem; }
+  .sl-val { font-family:Georgia,serif; font-weight:700; font-size:1.05rem; color:var(--rose-soft); min-width:3ch; text-align:right; }
+  .sl-hint { font-size:.76rem; color:var(--muted); margin-top:2px; }
+  input[type=range] { width:100%; margin:6px 0 2px; accent-color:var(--rose); height:20px; cursor:pointer; }
+
+  .result-box { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:6px; }
+  .result-box .cell { background:var(--g3); border-radius:12px; padding:10px 12px; }
+  .result-box .cell .rk { font-size:.72rem; color:var(--muted); }
+  .result-box .cell .rv { font-weight:700; font-size:1.05rem; }
+
+  .compare-toggle { display:flex; align-items:center; gap:12px; margin-top:16px; }
+  .switch { position:relative; display:inline-block; width:52px; height:28px; }
+  .switch input { opacity:0; width:0; height:0; }
+  .switch .sl { position:absolute; inset:0; background:var(--track); border-radius:999px; transition:.25s; cursor:pointer; }
+  .switch .sl::before { content:""; position:absolute; left:3px; top:3px; width:22px; height:22px; border-radius:50%; background:#fff; transition:.25s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .switch input:checked + .sl { background:var(--teal); }
+  .switch input:checked + .sl::before { transform:translateX(24px); }
+  .switch input:focus-visible + .sl { outline:2px solid var(--rose); outline-offset:2px; }
+
+  /* ===== 图表区 ===== */
+  .chart-card h3 { margin-top:0; }
+  .chart-card .note { font-size:.78rem; color:var(--muted); margin-top:6px; }
+  svg text { font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; }
+
+  .prio-row { display:flex; align-items:center; gap:14px; padding:10px 0; border-bottom:1px dashed var(--line); }
+  .prio-row:last-child { border-bottom:none; }
+  .prio-rank { font-family:Georgia,serif; font-weight:700; color:var(--muted); width:26px; text-align:center; }
+  .prio-rank.top { color:var(--rose-soft); }
+  .prio-name { flex:1; font-size:.92rem; }
+  .prio-bar { flex:2; height:12px; border-radius:999px; background:var(--track); overflow:hidden; }
+  .prio-bar i { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,var(--teal),var(--gold)); width:0%; transition:width .35s ease; }
+  .prio-gain { width:110px; text-align:right; font-weight:700; font-size:.9rem; color:var(--good); }
+  .prio-group { font-size:.68rem; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:1px 6px; margin-right:6px; }
+
+  .delta-banner { display:flex; align-items:center; gap:14px; padding:18px 22px; border-radius:16px; margin-bottom:22px;
+    border:1px solid var(--line); background:var(--card); }
+  .delta-banner .big { font-family:Georgia,serif; font-size:2.4rem; font-weight:700; color:var(--rose-soft); }
+  .delta-banner .txt { flex:1; font-size:.95rem; color:var(--ink-soft); }
+  .delta-banner .txt b { color:var(--ink); }
+
+  /* ===== 对比漏斗 ===== */
+  .funnel-wrap { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .funnel-block .fh { font-size:.84rem; font-weight:600; margin-bottom:10px; display:flex; justify-content:space-between; }
+  .funnel-block .bar { height:30px; margin-bottom:8px; border-radius:8px; display:flex; align-items:center; padding:0 12px; font-size:.78rem; color:#fff; font-weight:600; min-width:40px; transition:width .4s ease; }
+  .funnel-block .bA { background:linear-gradient(90deg,var(--rose),var(--rose-soft)); }
+  .funnel-block .bB { background:linear-gradient(90deg,var(--teal),#2b5f5a); }
+  .funnel-block .cap { font-size:.72rem; color:var(--muted); text-align:right; }
+
+  /* ===== 校准 ===== */
+  .param-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:14px; }
+  .param-grid label { display:block; font-size:.76rem; color:var(--muted); margin-bottom:4px; }
+  .param-grid input { width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:var(--g3); color:var(--ink); font-size:.9rem; }
+  .w-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:8px; }
+  .w-cell { font-size:.78rem; }
+  .w-cell input { width:100%; padding:5px 7px; border:1px solid var(--line); border-radius:8px; background:var(--g3); color:var(--ink); margin-top:3px; }
+  .btn { margin-top:14px; padding:8px 18px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; font-size:.84rem; transition:all .2s; }
+  .btn:hover { border-color:var(--rose); color:var(--rose-soft); }
+  .assume li { font-size:.86rem; color:var(--ink-soft); margin-bottom:8px; }
+
+  footer { background:var(--ink); color:var(--on-ink,#f4f0e6); padding:34px 0; text-align:center; font-size:.8rem; opacity:.9; }
+  footer .on-ink { color:#f4f0e6; }
+  footer .on-ink b { color:var(--gold); }
+
+  @media (max-width: 900px){
+    .kpi-grid { grid-template-columns:repeat(2,1fr); }
+    .grid2, .grid2-35, .funnel-wrap { grid-template-columns:1fr; }
+    .param-grid { grid-template-columns:repeat(2,1fr); }
+    .w-grid { grid-template-columns:repeat(3,1fr); }
+    section { padding:54px 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="brand">👗 女装视觉销量<span>模型</span></div>
+    <div class="links">
+      <a href="#model">算法</a>
+      <a href="#scorer">评分器</a>
+      <a href="#curves">弹性曲线</a>
+      <a href="#priority">优化优先级</a>
+      <a href="#compare">A/B对比</a>
+      <a href="#calibrate">校准</a>
+    </div>
+  </div>
+</header>
+
+<!-- ===== 首屏 ===== -->
+<section class="hero bg1" id="top">
+  <div class="container">
+    <div class="eyebrow">统一风格女装类目 · 视觉转化分析</div>
+    <h1>主图 &amp; 详情页设计 <em>如何影响销量？</em></h1>
+    <p class="hero-sub">一个可解释的评分 + 弹性模型：把主图和详情页拆成 12 个可打分维度，量化"改一版图，预计多卖多少"。所有权重与基线均可按你的真实数据校准。</p>
+    <div class="chips">
+      <span class="chip hot">模型 v1.0 · 透明可解释</span>
+      <span class="chip">主图 → 点击率</span>
+      <span class="chip">详情页 → 转化率</span>
+      <span class="chip">权重可调 · 支持A/B对比</span>
+    </div>
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi"><div class="k">预估点击率 CTR</div><div class="v accent num" id="kpi-ctr">–</div><div class="s" id="kpi-ctr-sub">类目基准 4.0%</div></div>
+      <div class="kpi"><div class="k">预估转化率 CVR</div><div class="v accent num" id="kpi-cvr">–</div><div class="s" id="kpi-cvr-sub">类目基准 2.2%</div></div>
+      <div class="kpi"><div class="k">预估月销量（单）</div><div class="v num" id="kpi-orders">–</div><div class="s" id="kpi-gmv">GMV ¥–</div></div>
+      <div class="kpi"><div class="k">较基准（主图/详情 60分）</div><div class="v num" id="kpi-impact">–</div><div class="s" id="kpi-impact-sub">销量变化</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 算法 ===== -->
+<section class="bg2" id="model">
+  <div class="container reveal">
+    <div class="eyebrow">第一步 · 算法一图流</div>
+    <h2 class="sec-title">销售漏斗归因：谁影响哪一环</h2>
+    <p class="sec-lead">销量不是被"整体设计好不好"决定的，而是被漏斗每一环的转化效率决定的。主图决定用户点不点进来，详情页决定进来了买不买。</p>
+    <div class="card" style="margin-bottom:18px;">
+      <svg id="model-funnel" width="100%" height="230" role="img" aria-label="销售漏斗：曝光→点击→转化→销量"></svg>
+    </div>
+    <div class="grid2-35">
+      <div class="card">
+        <h3 style="margin-top:0;">四个公式</h3>
+        <div style="font-family:Georgia,'Songti SC',serif; font-size:1.02rem; line-height:2;">
+          <div><b style="color:var(--rose-soft);">主图分</b> = Σ(维度<sub>i</sub> × 权重<sub>i</sub>)</div>
+          <div><b style="color:var(--rose-soft);">详情页分</b> = Σ(维度<sub>j</sub> × 权重<sub>j</sub>)</div>
+          <div><b style="color:var(--teal);">销量</b> = 曝光 × 点击率 × 转化率</div>
+          <div style="font-size:.9rem;color:var(--ink-soft);">点击率 ← 主图分 · 转化率 ← 详情页分</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;">弹性曲线（S 型）</h3>
+        <p style="font-size:.92rem;color:var(--ink-soft);">分数从 60 分基准起，对点击/转化的放大倍数按 S 型曲线变化：<b>60 分以下改进收益大，60–85 分改进收益最陡，85 分以上趋于饱和</b>。也就是说——把 55 分的主图提到 80 分，比把 88 分提到 95 分划算得多。</p>
+        <div style="font-size:.84rem;color:var(--muted);">提升倍数 = 1 + α × σ(分数)　｜　σ 为 logistic 曲线</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 评分器 ===== -->
+<section class="bg3" id="scorer">
+  <div class="container reveal">
+    <div class="eyebrow">第二步 · 交互评分器</div>
+    <h2 class="sec-title">给店铺的主图和详情页打分</h2>
+    <p class="sec-lead">拖动滑块模拟 12 个维度的质量，顶部 KPI 与下方图表全部实时联动。开启对比模式可录入第二家店铺。</p>
+
+    <div class="compare-toggle">
+      <span style="font-weight:600;">对比模式</span>
+      <label class="switch"><input type="checkbox" id="compare-toggle"><span class="sl"></span></label>
+      <span id="compare-status" style="font-size:.85rem;color:var(--muted);">开启后录入店铺 B</span>
+    </div>
+
+    <div class="grid2" style="margin-top:20px;">
+      <div class="card">
+        <div class="panel-title"><h3>🏷️ 主图质量</h3><span class="badge a">店铺 A</span></div>
+        <div class="gauge-row">
+          <div class="gauge-num num"><span id="gauge-img-score">–</span><small> / 100</small></div>
+          <div class="gauge-bar"><i class="img" id="gauge-img-bar"></i></div>
+        </div>
+        <div id="scorer-a"></div>
+        <div class="result-box">
+          <div class="cell"><div class="rk">主图分 → 点击率</div><div class="rv num" id="res-a-ctr">–</div></div>
+          <div class="cell"><div class="rk">详情页分 → 转化率</div><div class="rv num" id="res-a-cvr">–</div></div>
+          <div class="cell"><div class="rk">预估月销</div><div class="rv num" id="res-a-orders">–</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="panel-title"><h3>📄 详情页质量</h3><span class="badge a">店铺 A</span></div>
+        <div class="gauge-row">
+          <div class="gauge-num num"><span id="gauge-det-score">–</span><small> / 100</small></div>
+          <div class="gauge-bar"><i class="det" id="gauge-det-bar"></i></div>
+        </div>
+        <div id="scorer-a-det"></div>
+      </div>
+    </div>
+
+    <div class="grid2" id="shop-b-grid" style="margin-top:18px; display:none;">
+      <div class="card" style="border-color:color-mix(in srgb,var(--teal) 45%,transparent);">
+        <div class="panel-title"><h3>🏷️ 主图质量</h3><span class="badge b">店铺 B</span></div>
+        <div class="gauge-row">
+          <div class="gauge-num num"><span id="gauge-img-score-b">–</span><small> / 100</small></div>
+          <div class="gauge-bar"><i class="img" id="gauge-img-bar-b"></i></div>
+        </div>
+        <div id="scorer-b"></div>
+        <div class="result-box">
+          <div class="cell"><div class="rk">点击率</div><div class="rv num" id="res-b-ctr">–</div></div>
+          <div class="cell"><div class="rk">转化率</div><div class="rv num" id="res-b-cvr">–</div></div>
+          <div class="cell"><div class="rk">预估月销</div><div class="rv num" id="res-b-orders">–</div></div>
+        </div>
+      </div>
+      <div class="card" style="border-color:color-mix(in srgb,var(--teal) 45%,transparent);">
+        <div class="panel-title"><h3>📄 详情页质量</h3><span class="badge b">店铺 B</span></div>
+        <div class="gauge-row">
+          <div class="gauge-num num"><span id="gauge-det-score-b">–</span><small> / 100</small></div>
+          <div class="gauge-bar"><i class="det" id="gauge-det-bar-b"></i></div>
+        </div>
+        <div id="scorer-b-det"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 弹性曲线 ===== -->
+<section class="bg2" id="curves">
+  <div class="container reveal">
+    <div class="eyebrow">第三步 · 弹性曲线</div>
+    <h2 class="sec-title">分数涨 10 分，销量涨多少？</h2>
+    <p class="sec-lead">曲线越陡的地方，改进越划算。红点 = 店铺 A 当前所在位置；青点 = 店铺 B（对比模式下）。</p>
+    <div class="grid2">
+      <div class="card chart-card">
+        <h3>主图分 → 点击率</h3>
+        <svg id="curve-img" viewBox="0 0 520 300" width="100%" role="img" aria-label="主图分与点击率曲线"></svg>
+        <div class="note">类目点击率基准 4.0%。85 分主图约可推动点击率接近翻倍。</div>
+      </div>
+      <div class="card chart-card">
+        <h3>详情页分 → 转化率</h3>
+        <svg id="curve-det" viewBox="0 0 520 300" width="100%" role="img" aria-label="详情页分与转化率曲线"></svg>
+        <div class="note">类目转化率基准 2.2%。详情页优化空间通常集中在信任与卖点结构。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 优化优先级 ===== -->
+<section class="bg3" id="priority">
+  <div class="container reveal">
+    <div class="eyebrow">第四步 · 优化优先级</div>
+    <h2 class="sec-title">改哪一格，最划算？</h2>
+    <p class="sec-lead">模型自动计算"每个维度提升 10 分 → 预计销量 +X%"，按收益从高到低排序。这就是你的<b>本周改图清单</b>。</p>
+    <div class="card">
+      <div id="priority-list"></div>
+    </div>
+    <p style="font-size:.82rem;color:var(--muted);margin-top:14px;">注：收益 = 该维度权重 × 当前曲线斜率 × 另一环的转化基数。分数已接近 100 的维度排后会靠后，因为曲线已饱和。</p>
+  </div>
+</section>
+
+<!-- ===== A/B 对比 ===== -->
+<section class="bg2" id="compare">
+  <div class="container reveal">
+    <div class="eyebrow">第五步 · A/B 对比</div>
+    <h2 class="sec-title">店铺 A vs 店铺 B</h2>
+    <div class="delta-banner" id="delta-banner">
+      <div class="big num" id="delta-pct">–</div>
+      <div class="txt">店铺 A 相对店铺 B 预计销量差距。差距主要来自 <b id="delta-why">–</b> —— 先补齐这个短板，再谈放大优势。</div>
+    </div>
+    <div class="grid2">
+      <div class="card chart-card">
+        <h3>十二维雷达对比</h3>
+        <svg id="radar-svg" viewBox="0 0 360 360" width="100%" role="img" aria-label="两店十二维雷达图"></svg>
+      </div>
+      <div class="card chart-card">
+        <h3>漏斗对比（同曝光 10 万）</h3>
+        <div class="funnel-wrap">
+          <div class="funnel-block"><div class="fh"><span>店铺 A</span><span class="num" id="fA-orders">–</span></div><div id="funnel-a"></div><div class="cap" id="fA-cap"></div></div>
+          <div class="funnel-block"><div class="fh"><span>店铺 B</span><span class="num" id="fB-orders">–</span></div><div id="funnel-b"></div><div class="cap" id="fB-cap"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 校准 ===== -->
+<section class="bg3" id="calibrate">
+  <div class="container reveal">
+    <div class="eyebrow">第六步 · 校准与假设</div>
+    <h2 class="sec-title">接入你的真实数据</h2>
+    <p class="sec-lead">模型内置的基准值取自已公开的电商类目经验区间，仅用于演示。拿到 <b>生意参谋 / 店铺后台</b> 的真实数据后，按下表校准即可。</p>
+    <div class="grid2">
+      <div class="card">
+        <h3 style="margin-top:0;">基线参数</h3>
+        <div class="param-grid">
+          <label>月曝光量<input type="number" id="p-exposure" step="10000" min="1000"></label>
+          <label>点击率基准 %<input type="number" id="p-ctr" step="0.1" min="0.1"></label>
+          <label>转化率基准 %<input type="number" id="p-cvr" step="0.1" min="0.05"></label>
+          <label>客单价 ¥<input type="number" id="p-aov" step="1" min="1"></label>
+          <label>α 主图（点击弹性）<input type="number" id="p-aci" step="0.1" min="0" max="3"></label>
+          <label>α 详情（转化弹性）<input type="number" id="p-acv" step="0.1" min="0" max="3"></label>
+          <label>基准分<input type="number" id="p-s0" step="5" min="0" max="100"></label>
+          <label>曲线陡度 k<input type="number" id="p-k" step="1" min="1" max="40"></label>
+        </div>
+        <button class="btn" id="reset-btn">恢复默认参数</button>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;">12 维权重（主图 / 详情页）</h3>
+        <div class="w-grid" id="w-grid"></div>
+        <div style="font-size:.76rem;color:var(--muted);margin-top:10px;">建议每组权重合计为 1.00。可用回归/主成分分析从历史数据反推权重。</div>
+        <h3 style="margin-top:18px;">模型假设与局限</h3>
+        <ul class="assume" style="padding-left:18px;">
+          <li>主图只影响点击率、详情页只影响转化率——真实世界里二者有交叉（例如主图也塑造转化预期），模型做了简化。</li>
+          <li>未纳入价格、评价数、销量基数、流量结构、季节等<b>混淆变量</b>。它们在现实中会共同作用。</li>
+          <li>弹性曲线形状（α、k）可用真实 A/B 测试数据拟合，也可直接替换成你自建的分位数映射。</li>
+          <li>本模型用于<b>归因与优先级排序</b>，不是黑箱预测器——数字是相对量级，不是精确承诺。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="on-ink">👗 女装视觉销量模型 v1.0 · 透明评分 + S型弹性 · 权重可校准<br>建议落地：先按本表评估现款 → 按优先级逐项改版 → 用 A/B 测试验证每版提升</div>
+</footer>
+
+<script>
+/* ============ 模型 ============ */
+var DEFAULTS = {
+  base: { exposure: 100000, ctr: 0.040, cvr: 0.022, aov: 189, aci: 1.0, acv: 0.7, s0: 60, k: 15 },
+  weights: [0.16,0.20,0.12,0.20,0.14,0.18, 0.20,0.20,0.20,0.15,0.15,0.10],
+  dims: [
+    {g:'img', label:'首图清晰度与光影', hint:'像素、打光、背景干净', short:'清晰'},
+    {g:'img', label:'模特与穿着展示',   hint:'姿态、版型、多角度', short:'模特'},
+    {g:'img', label:'场景与氛围',       hint:'贴合风格的场景情绪', short:'场景'},
+    {g:'img', label:'卖点信息传达',     hint:'核心卖点一眼看清', short:'卖点'},
+    {g:'img', label:'营销元素与价格',   hint:'价格/活动标签，不过度', short:'营销'},
+    {g:'img', label:'风格一致度',       hint:'统一风格类目的视觉统一性', short:'风格'},
+    {g:'det', label:'首屏承接效率',     hint:'面料/尺码/卖点3秒可见', short:'首屏'},
+    {g:'det', label:'卖点结构化表达',   hint:'痛点→方案 模块化', short:'结构'},
+    {g:'det', label:'实拍与细节信任',   hint:'细节特写、质检、工艺', short:'实拍'},
+    {g:'det', label:'场景上身与搭配',   hint:'生活场景、搭配延伸', short:'搭配'},
+    {g:'det', label:'转化引导与SKU',    hint:'加购引导、优惠、SKU清晰', short:'引导'},
+    {g:'det', label:'加载与浏览体验',   hint:'图片节奏、性能平衡', short:'性能'}
+  ],
+  A: [84,78,70,82,74,80, 78,76,82,70,74,84],
+  B: [56,62,50,64,68,55, 62,58,64,56,60,70]
+};
+
+var M = { base: {}, dims: [] };
+function resetModel() {
+  M.base = Object.assign({}, DEFAULTS.base);
+  M.dims = DEFAULTS.dims.map(function(d, i){ return Object.assign({}, d, { w: DEFAULTS.weights[i] }); });
+}
+resetModel();
+
+var state = { A: DEFAULTS.A.slice(), B: DEFAULTS.B.slice(), compare: false };
+
+function sigma(x){ return 1/(1+Math.exp(-x)); }
+function uplift(s, alpha){
+  var k = M.base.k, s0 = M.base.s0;
+  return 1 + alpha * (sigma((s-s0)/k) - 0.5) / 0.5;
+}
+function scoreOf(vals){
+  var t = 0;
+  for (var i=0;i<vals.length;i++) t += vals[i] * M.dims[i].w;
+  return t;
+}
+function compute(vals){
+  var img = scoreOf(vals.slice(0,6)), det = scoreOf(vals.slice(6));
+  var Uc = uplift(img, M.base.aci), Uv = uplift(det, M.base.acv);
+  var ctr = M.base.ctr * Uc, cvr = M.base.cvr * Uv;
+  var clicks = M.base.exposure * ctr, orders = clicks * cvr, gmv = orders * M.base.aov;
+  var impact = (Uc * Uv - 1) * 100;
+  return { img:img, det:det, Uc:Uc, Uv:Uv, ctr:ctr, cvr:cvr, clicks:clicks, orders:orders, gmv:gmv, impact:impact };
+}
+function fmtPct(x, d){ return (x*100).toFixed(d==null?1:d) + '%'; }
+function fmtNum(x){ return Math.max(0, Math.round(x)).toLocaleString('zh-CN'); }
+
+/* ============ 构建评分器 ============ */
+function buildScorer(containerId, shop, group){
+  var el = document.getElementById(containerId);
+  el.innerHTML = '';
+  M.dims.forEach(function(d, i){
+    if (group && d.g !== group) return;
+    var row = document.createElement('div');
+    row.className = 'slider-row';
+    row.innerHTML =
+      '<div class="sl-head"><span class="sl-name">' + d.label + '</span><span class="sl-val num" data-v="' + i + '">' + state[shop][i] + '</span></div>' +
+      '<input type="range" min="0" max="100" step="1" value="' + state[shop][i] + '" data-i="' + i + '" data-shop="' + shop + '">' +
+      '<div class="sl-hint">' + d.hint + ' · 权重 ' + Math.round(d.w*100) + '%</div>';
+    el.appendChild(row);
+  });
+}
+buildScorer('scorer-a','A','img'); buildScorer('scorer-b','B','img');
+buildScorer('scorer-a-det','A','det'); buildScorer('scorer-b-det','B','det');
+
+document.addEventListener('input', function(e){
+  if (e.target.matches('#scorer-a input, #scorer-a-det input')){
+    state.A[+e.target.dataset.i] = +e.target.value;
+    e.target.parentElement.querySelector('.sl-val').textContent = e.target.value;
+  } else if (e.target.matches('#scorer-b input, #scorer-b-det input')){
+    state.B[+e.target.dataset.i] = +e.target.value;
+    e.target.parentElement.querySelector('.sl-val').textContent = e.target.value;
+  }
+  render();
+});
+
+/* ============ 构建权重输入 ============ */
+function buildWeights(){
+  var el = document.getElementById('w-grid');
+  el.innerHTML = '';
+  M.dims.forEach(function(d, i){
+    var c = document.createElement('div');
+    c.className = 'w-cell';
+    c.innerHTML = '<span>' + d.label + ' <span style="opacity:.6">(' + (d.g==='img'?'图':'详') + ')</span></span><input type="number" step="0.01" min="0" max="1" data-w="' + i + '" value="' + d.w + '">';
+    el.appendChild(c);
+  });
+}
+buildWeights();
+document.addEventListener('input', function(e){
+  if (e.target.matches('#w-grid input')){
+    M.dims[+e.target.dataset.w].w = +e.target.value;
+    render();
+  }
+});
+function bindParams(){
+  var map = { 'p-exposure':'exposure','p-ctr':'ctr','p-cvr':'cvr','p-aov':'aov','p-aci':'aci','p-acv':'acv','p-s0':'s0','p-k':'k' };
+  Object.keys(map).forEach(function(id){
+    var el = document.getElementById(id);
+    if (map[id]==='ctr' || map[id]==='cvr') el.value = (M.base[map[id]]*100).toFixed(1);
+    else el.value = M.base[map[id]];
+    el.addEventListener('input', function(){
+      var v = +el.value;
+      if (map[id]==='ctr' || map[id]==='cvr') v = v/100;
+      M.base[map[id]] = v;
+      render();
+    });
+  });
+  document.getElementById('reset-btn').addEventListener('click', function(){
+    resetModel();
+    // 重置滑块与权重
+    state.A = DEFAULTS.A.slice(); state.B = DEFAULTS.B.slice();
+    buildScorer('scorer-a','A','img'); buildScorer('scorer-b','B','img');
+    buildScorer('scorer-a-det','A','det'); buildScorer('scorer-b-det','B','det');
+    buildWeights(); bindParams();
+    render();
+  });
+}
+bindParams();
+
+/* ============ 对比开关 ============ */
+document.getElementById('compare-toggle').addEventListener('change', function(e){
+  state.compare = e.target.checked;
+  document.getElementById('shop-b-grid').style.display = state.compare ? 'grid' : 'none';
+  document.getElementById('compare-status').textContent = state.compare ? '已开启 · 店铺 B 数值与图表联动' : '开启后录入店铺 B';
+  render();
+});
+
+/* ============ 渲染 ============ */
+function render(){
+  var cA = compute(state.A), cB = compute(state.B);
+  renderKpis(cA); renderGauges(cA); renderFunnelModel(cA);
+  renderCurves(cA, cB); renderPriority(cA); renderCompare(cA, cB);
+}
+
+function renderKpis(c){
+  document.getElementById('kpi-ctr').textContent = fmtPct(c.ctr, 2);
+  document.getElementById('kpi-ctr-sub').textContent = '类目基准 ' + fmtPct(M.base.ctr) + ' · 放大 ' + c.Uc.toFixed(2) + '×';
+  document.getElementById('kpi-cvr').textContent = fmtPct(c.cvr, 2);
+  document.getElementById('kpi-cvr-sub').textContent = '类目基准 ' + fmtPct(M.base.cvr) + ' · 放大 ' + c.Uv.toFixed(2) + '×';
+  document.getElementById('kpi-orders').textContent = fmtNum(c.orders);
+  document.getElementById('kpi-gmv').textContent = 'GMV ¥' + fmtNum(c.gmv);
+  var imp = document.getElementById('kpi-impact');
+  imp.textContent = (c.impact >= 0 ? '+' : '') + c.impact.toFixed(0) + '%';
+  imp.className = 'v num ' + (c.impact >= 0 ? 'up' : 'down');
+  document.getElementById('kpi-impact-sub').textContent = c.impact >= 0 ? '较基准提升' : '较基准下降';
+}
+
+function renderGauges(c){
+  setGauge('gauge-img-score','gauge-img-bar', c.img);
+  setGauge('gauge-det-score','gauge-det-bar', c.det);
+  if (state.compare){
+    var cB = compute(state.B);
+    setGauge('gauge-img-score-b','gauge-img-bar-b', cB.img);
+    setGauge('gauge-det-score-b','gauge-det-bar-b', cB.det);
+    document.getElementById('res-a-ctr').textContent = fmtPct(c.ctr,2);
+    document.getElementById('res-a-cvr').textContent = fmtPct(c.cvr,2);
+    document.getElementById('res-a-orders').textContent = fmtNum(c.orders);
+    document.getElementById('res-b-ctr').textContent = fmtPct(cB.ctr,2);
+    document.getElementById('res-b-cvr').textContent = fmtPct(cB.cvr,2);
+    document.getElementById('res-b-orders').textContent = fmtNum(cB.orders);
+  } else {
+    document.getElementById('res-a-ctr').textContent = fmtPct(c.ctr,2);
+    document.getElementById('res-a-cvr').textContent = fmtPct(c.cvr,2);
+    document.getElementById('res-a-orders').textContent = fmtNum(c.orders);
+  }
+}
+function setGauge(numId, barId, v){
+  document.getElementById(numId).textContent = Math.round(v);
+  document.getElementById(barId).style.width = v + '%';
+}
+
+/* ===== 漏斗 ===== */
+function renderFunnelModel(c){
+  var max = M.base.exposure;
+  function W(v){ return 100 * Math.log10(v+1) / Math.log10(max+1); }
+  var stages = [
+    { l:'曝光量', v: M.base.exposure, s:'平台分配 · 非视觉可控', c:'' },
+    { l:'点击量', v: c.clicks, s:'主图质量分驱动', c:'var(--rose)' },
+    { l:'转化量', v: c.orders, s:'详情页质量分驱动', c:'var(--rose-soft)' },
+    { l:'销量（单）', v: c.orders, s:'= 点击 × 转化', c:'' }
+  ];
+  var svg = document.getElementById('model-funnel');
+  var html = '';
+  var y = 8;
+  stages.forEach(function(st){
+    var w = W(st.v);
+    var cx = 50;
+    html += '<g><rect x="' + (100-w)/2 + '%" y="' + y + '" width="' + w + '%" height="40" rx="8" fill="' + (st.c || 'var(--teal)') + '" opacity="' + (st.c?'0.9':'0.78') + '"/>';
+    html += '<text x="50%" y="' + (y+16) + '" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">' + st.l + '</text>';
+    html += '<text x="50%" y="' + (y+34) + '" text-anchor="middle" font-size="11" fill="#fff" opacity=".9">' + fmtNum(st.v) + '</text></g>';
+    if (st !== stages[stages.length-1]){
+      html += '<text x="50%" y="' + (y+48) + '" text-anchor="middle" font-size="10" fill="var(--muted)">▼ ' + st.s + '</text>';
+    }
+    y += 52;
+  });
+  svg.innerHTML = html;
+}
+
+/* ===== 弹性曲线 ===== */
+function renderCurves(cA, cB){
+  drawCurve('curve-img', function(s){ return M.base.ctr * uplift(s, M.base.aci); }, M.base.ctr*1.9, cA.img, M.base.ctr, cB.img);
+  drawCurve('curve-det', function(s){ return M.base.cvr * uplift(s, M.base.acv); }, M.base.cvr*1.8, cA.det, M.base.cvr, cB.det);
+}
+function drawCurve(id, fn, ymax, posA, base, posB){
+  var svg = document.getElementById(id);
+  var W = 520, H = 300, pl = 46, pr = 14, pt = 14, pb = 34;
+  var iw = W - pl - pr, ih = H - pt - pb;
+  var px = function(s){ return pl + s/100*iw; };
+  var py = function(v){ return H - pb - (v/ymax)*ih; };
+  var html = '';
+  // 网格
+  [0,20,40,60,80,100].forEach(function(s){
+    html += '<line x1="' + px(s) + '" y1="' + pt + '" x2="' + px(s) + '" y2="' + (H-pb) + '" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 4"/>';
+    html += '<text x="' + px(s) + '" y="' + (H-pb+14) + '" text-anchor="middle" font-size="10" fill="var(--muted)">' + s + '</text>';
+  });
+  for (var g=1; g<=3; g++){
+    var gy = py(ymax*g/4);
+    html += '<line x1="' + pl + '" y1="' + gy + '" x2="' + (W-pr) + '" y2="' + gy + '" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4"/>';
+    html += '<text x="' + (pl-6) + '" y="' + (gy+4) + '" text-anchor="end" font-size="10" fill="var(--muted)">' + (ymax*g/4*100).toFixed(1) + '%</text>';
+  }
+  // 曲线
+  var pts = [];
+  for (var s=0; s<=100; s+=2) pts.push([px(s), py(fn(s))]);
+  var path = pts.map(function(p,i){ return (i?'L':'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join('');
+  html += '<path d="' + path + '" fill="none" stroke="var(--rose)" stroke-width="2.5"/>';
+  html += '<path d="' + path + '" fill="none" stroke="var(--rose)" stroke-width="7" opacity=".12"/>';
+  // 基线
+  var by = py(base);
+  html += '<line x1="' + pl + '" y1="' + by + '" x2="' + (W-pr) + '" y2="' + by + '" stroke="var(--gold)" stroke-width="1.4" stroke-dasharray="6 4"/>';
+  html += '<text x="' + (W-pr) + '" y="' + (by-5) + '" text-anchor="end" font-size="10" fill="var(--gold-soft,var(--gold))">基准 ' + (base*100).toFixed(1) + '%</text>';
+  // 当前点 A / B 标记
+  html += markerMark(px, py, pt, pb, H, posA, fn(posA), 'var(--rose)');
+  if (state.compare && posB != null) html += markerMark(px, py, pt, pb, H, posB, fn(posB), 'var(--teal)');
+  svg.innerHTML = html;
+}
+function markerMark(px, py, pt, pb, H, s, v, color){
+  var cx = px(s), cy = py(v);
+  return '<line x1="' + cx + '" y1="' + pt + '" x2="' + cx + '" y2="' + (H-pb) + '" stroke="' + color + '" stroke-width="1.2" stroke-dasharray="3 3" opacity=".6"/>' +
+         '<circle cx="' + cx + '" cy="' + cy + '" r="6" fill="' + color + '" stroke="var(--g1)" stroke-width="2"/>';
+}
+
+/* ===== 优化优先级 ===== */
+function renderPriority(c){
+  var base = c.orders;
+  var items = [];
+  M.dims.forEach(function(d, i){
+    var bumped = state.A.slice(); bumped[i] = Math.min(100, bumped[i] + 10);
+    var gain = (compute(bumped).orders - base) / base * 100;
+    items.push({ i:i, gain:gain });
+  });
+  items.sort(function(a,b){ return b.gain - a.gain; });
+  var el = document.getElementById('priority-list');
+  var max = Math.max(0.01, items[0].gain);
+  var html = '';
+  items.forEach(function(it, r){
+    var d = M.dims[it.i];
+    var gtag = d.g==='img' ? '主图' : '详情';
+    var cls = 'prio-rank' + (r < 3 ? ' top' : '');
+    html += '<div class="prio-row">' +
+      '<span class="' + cls + '">' + (r+1) + '</span>' +
+      '<span class="prio-name"><span class="prio-group">' + gtag + '</span>' + d.label + '</span>' +
+      '<span class="prio-bar"><i style="width:' + Math.max(3, it.gain/max*100) + '%"></i></span>' +
+      '<span class="prio-gain num">+' + it.gain.toFixed(1) + '%</span></div>';
+  });
+  el.innerHTML = html;
+}
+
+/* ===== A/B 对比 ===== */
+function renderCompare(cA, cB){
+  var pct = (cA.orders - cB.orders) / cB.orders * 100;
+  document.getElementById('delta-pct').textContent = (pct>=0?'+':'') + pct.toFixed(0) + '%';
+  var why = explainGap(cA, cB);
+  document.getElementById('delta-why').textContent = why;
+  renderRadar(); renderFunnels(cA, cB);
+}
+function explainGap(cA, cB){
+  // 拆解差距来源：点击差距 vs 转化差距
+  var dClick = (cA.ctr - cB.ctr) / cB.ctr;
+  var dConv = (cA.cvr - cB.cvr) / cB.cvr;
+  if (dClick > dConv) return '点击率差距（主图）更大 —— 优先改 B 的主图';
+  return '转化率差距（详情页）更大 —— 优先改 B 的详情页';
+}
+
+function renderRadar(){
+  var svg = document.getElementById('radar-svg');
+  var cx = 180, cy = 180, R = 122, n = 12;
+  function pt(i, v){
+    var ang = i/n*2*Math.PI - Math.PI/2;
+    var r = R * v/100;
+    return [cx + r*Math.cos(ang), cy + r*Math.sin(ang)];
+  }
+  var html = '';
+  [25,50,75,100].forEach(function(v){
+    var p = [];
+    for (var i=0;i<n;i++){ var q = pt(i,v); p.push(q[0].toFixed(1)+' '+q[1].toFixed(1)); }
+    html += '<polygon points="' + p.join(',') + '" fill="none" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 4"/>';
+  });
+  M.dims.forEach(function(d, i){
+    var p = pt(i, 100);
+    html += '<line x1="' + cx + '" y1="' + cy + '" x2="' + p[0] + '" y2="' + p[1] + '" stroke="var(--line)" stroke-width="1"/>';
+    var l = pt(i, 118);
+    var anchor = Math.abs(l[0]-cx) < 6 ? 'middle' : (l[0]>cx ? 'start' : 'end');
+    html += '<text x="' + l[0] + '" y="' + l[1] + '" text-anchor="' + anchor + '" font-size="10.5" fill="var(--ink-soft)">' + d.short + '</text>';
+  });
+  function poly(vals, color, opacity){
+    var p = [];
+    for (var i=0;i<n;i++){ var q = pt(i, vals[i]); p.push(q[0].toFixed(1)+' '+q[1].toFixed(1)); }
+    return '<polygon points="' + p.join(',') + '" fill="' + color + '" fill-opacity="' + opacity + '" stroke="' + color + '" stroke-width="2"/>';
+  }
+  html += poly(state.A, 'var(--rose)', 0.30);
+  if (state.compare) html += poly(state.B, 'var(--teal)', 0.30);
+  html += '<circle cx="' + cx + '" cy="' + cy + '" r="3" fill="var(--gold)"/>';
+  // 图例
+  html += '<circle cx="' + (cx-70) + '" cy="340" r="6" fill="var(--rose)"/><text x="' + (cx-58) + '" y="344" font-size="11" fill="var(--ink)">店铺A</text>';
+  if (state.compare){ html += '<circle cx="' + (cx-10) + '" cy="340" r="6" fill="var(--teal)"/><text x="' + (cx+2) + '" y="344" font-size="11" fill="var(--ink)">店铺B</text>'; }
+  svg.innerHTML = html;
+}
+
+function renderFunnels(cA, cB){
+  function block(vals, c){
+    var stages = [
+      { l:'曝光', v: M.base.exposure },
+      { l:'点击', v: vals.clicks },
+      { l:'转化', v: vals.orders }
+    ];
+    var html = '';
+    stages.forEach(function(st){
+      var w = 100 * Math.log10(st.v+1) / Math.log10(M.base.exposure+1);
+      html += '<div class="bar ' + c + '" style="width:' + Math.max(8, w) + '%">' + st.l + ' ' + fmtNum(st.v) + '</div>';
+    });
+    return html;
+  }
+  document.getElementById('funnel-a').innerHTML = block(cA, 'bA');
+  document.getElementById('funnel-b').innerHTML = block(cB, 'bB');
+  document.getElementById('fA-orders').textContent = fmtNum(cA.orders) + ' 单';
+  document.getElementById('fB-orders').textContent = fmtNum(cB.orders) + ' 单';
+  document.getElementById('fA-cap').textContent = '点击率 ' + fmtPct(cA.ctr,2) + ' · 转化率 ' + fmtPct(cA.cvr,2);
+  document.getElementById('fB-cap').textContent = '点击率 ' + fmtPct(cB.ctr,2) + ' · 转化率 ' + fmtPct(cB.cvr,2);
+}
+
+/* ============ 滚动渐入 ============ */
+if ('IntersectionObserver' in window){
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+} else {
+  document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); });
+}
+
+/* ============ 首屏渲染 ============ */
+render();
+</script>
+</body>
+</html>

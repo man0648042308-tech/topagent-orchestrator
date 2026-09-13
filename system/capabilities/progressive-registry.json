@@ -1,0 +1,16 @@
+{
+  "capability_id": "progressive-registry",
+  "name": "Agent/Skill 渐进式注册与加载",
+  "status": "implemented",
+  "maturity": "L2-verified",
+  "owner": "topagent-registry",
+  "entrypoint": "python -m topagent init",
+  "execution_code": "topagent/registry/",
+  "tests": ["tests/test_registry.py"],
+  "runtime_artifacts": ["agents", "skills", "capabilities"],
+  "metrics": ["definition count", "content_hash", "version", "status"],
+  "failure_recovery": "注册表可从 Markdown/JSON 唯一事实源重建",
+  "audit": ["content_hash", "updated_at"],
+  "limitations": ["当前 Skill 匹配为本地词元检索，尚无 embedding reranker"],
+  "verification": {"command": "python -m unittest tests.test_registry -v", "last_verified_at": "2026-08-17"}
+}

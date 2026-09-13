@@ -1,0 +1,16 @@
+{
+  "capability_id": "memory-lifecycle",
+  "name": "长期记忆生命周期",
+  "status": "implemented",
+  "maturity": "L2-verified",
+  "owner": "topagent-memory",
+  "entrypoint": "topagent.memory.MemoryStore",
+  "execution_code": "topagent/memory/store.py",
+  "tests": ["tests/test_memory.py"],
+  "runtime_artifacts": ["memories", "memory_fts", "memory/candidates/", "memory/canonical/", "memory/archive/"],
+  "metrics": ["status count", "confidence", "use_count", "last_verified_at", "last_used_at"],
+  "failure_recovery": "冲突不自动覆盖；显式 supersede 或 archive；SQLite 索引可由 Markdown 事实源扩展重建",
+  "audit": ["audit_records", "source_execution_id", "source_artifact_id", "supersedes", "conflicts_json"],
+  "limitations": ["尚未实现自动事实衰减任务与向量检索"],
+  "verification": {"command": "python -m unittest tests.test_memory -v", "last_verified_at": "2026-08-17"}
+}
